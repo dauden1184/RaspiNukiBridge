@@ -91,11 +91,6 @@ class NukiClientType(enum.Enum):
     KEYPAD = 0x03
 
 
-NUKI_ACTIONS = [NukiAction.UNLOCK, NukiAction.LOCK, NukiAction.UNLATCH, NukiAction.LOCK_N_GO,
-                NukiAction.LOCK_N_GO_UNLATCH, NukiAction.FULL_LOCK,
-                NukiAction.FOB_ACTION_1, NukiAction.FOB_ACTION_2, NukiAction.FOB_ACTION_3]
-
-
 class NukiManager:
 
     def __init__(self, name, app_id):
@@ -327,7 +322,7 @@ class Nuki:
                 cmd = self._encrypt_command(NukiCommand.REQUEST_CONFIG.value, data["nonce"])
                 await self._send_data(BLE_SERVICE_CHAR, cmd)
 
-            elif self._challenge_command in NUKI_ACTIONS:
+            elif self._challenge_command in NukiAction:
                 lock_action = self._challenge_command.value.to_bytes(1, "little")
                 app_id = self.manager.app_id.to_bytes(4, "little")
                 flags = 0
