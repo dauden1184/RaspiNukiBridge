@@ -93,19 +93,23 @@ class NukiClientType(enum.Enum):
 
 class NukiManager:
 
-    def __init__(self, name, app_id):
+    def __init__(self, name, app_id, adapter="hci0"):
         self.name = name
         self.app_id = app_id
         self.type_id = NukiClientType.BRIDGE
         self.newstate_callback = None
 
+        self._adapter = adapter
         self._devices = {}
-        self._scanner = BleakScanner()
+        self._scanner = BleakScanner(adapter=self._adapter)
         self._scanner.register_detection_callback(self._detected_ibeacon)
 
     async def nuki_newstate(self, nuki):
         if self.newstate_callback:
             await self.newstate_callback(nuki)
+
+    def get_client(self, address):
+        return BleakClient(address, adapter=self._adapter)
 
     def __getitem__(self, index):
         return list(self._devices.values())[index]
@@ -379,7 +383,7 @@ class Nuki:
 
     async def connect(self, notification_char=None):
         if not self._client:
-            self._client = BleakClient(self.address)
+            self._client = self.manager.get_client(self.address)
         await self.manager.stop_scanning()
         logging.info("Nuki connecting")
         await self._client.connect()
