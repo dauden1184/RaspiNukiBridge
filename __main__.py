@@ -197,8 +197,9 @@ if __name__ == "__main__":
 
     name = data["server"]["name"]
     app_id = data["server"]["app_id"]
+    bt_adapter = data["server"].get("adapter", "hci0")
 
-    nuki_manager = NukiManager(name, app_id)
+    nuki_manager = NukiManager(name, app_id, bt_adapter)
 
     if args.pair:
         address = args.pair
