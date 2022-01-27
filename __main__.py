@@ -9,7 +9,7 @@ import argparse
 import uuid
 
 from nacl.public import PrivateKey
-from aiohttp import web
+from aiohttp import web, ClientSession
 
 from nuki import Nuki, NukiManager, BridgeType, DeviceType
 
@@ -25,6 +25,7 @@ class WebServer:
         self.nuki_manager = nuki_manager
         self._start_datetime = None
         self._server_id = uuid.getnode()
+        self._http_callbacks = [None, None, None]  # Nuki Bridge support up to 3 callbacks
 
     def start(self):
         app = web.Application()
@@ -33,25 +34,75 @@ class WebServer:
                         web.get('/lock', self.nuki_lock),
                         web.get('/unlock', self.nuki_unlock),
                         web.get('/lockAction', self.nuki_lockaction),
-                        web.get('/lockState', self.nuki_state)])
+                        web.get('/lockState', self.nuki_state),
+                        web.get('/callback/add', self.callback_add),
+                        web.get('/callback/list', self.callback_list),
+                        web.get('/callback/remove', self.callback_remove)])
         app.on_startup.append(self._startup)
         web.run_app(app, host=self._host, port=self._port)
+
+    async def _newstate(self, nuki):
+        logging.info(f"Nuki new state: {nuki.last_state}")
+        if any(self._http_callbacks):
+            async with ClientSession() as session:
+                for url in filter(None, self._http_callbacks):
+                    try:
+                        data = {"nukiId": nuki.config["id"],
+                                "deviceType": DeviceType.SMARTLOCK_1_2.value,  # How to get this from bt api?
+                                "mode": nuki.last_state["nuki_state"],
+                                "state": nuki.last_state["lock_state"].value,
+                                "stateName": nuki.last_state["lock_state"].name,
+                                "batteryCritical": nuki.is_battery_critical,
+                                "batteryCharging": nuki.is_battery_charging,
+                                "batteryChargeState": nuki.battery_percentage,
+                                "keypadBatteryCritical": False}  # How to get this from bt api?
+                        async with session.post(url, data=json.dumps(data)) as resp:
+                            await resp.text()
+                    except:
+                        logging.exception(f"Error on http callbak {url}")
 
     async def _startup(self, _app):
         self._start_datetime = datetime.datetime.now()
         await self.nuki_manager.start_scanning()
 
+    async def callback_add(self, request):
+        if not self._check_token(request):
+            raise web.HTTPForbidden()
+        callback_url = request.query["url"]
+        for i, call in enumerate(self._http_callbacks):
+            if not call:
+                self._http_callbacks[i] = callback_url
+                break
+        if not self.nuki_manager.newstate_callback:
+            self.nuki_manager.newstate_callback = self._newstate
+        logging.info(f"Add http callback: {callback_url}")
+        return web.Response(text=json.dumps({"success": True}))
+
+    async def callback_list(self, request):
+        if not self._check_token(request):
+            raise web.HTTPForbidden()
+        resp = {"callbacks": [{"id": url_id, "url": url} for url_id, url in enumerate(self._http_callbacks) if url]}
+        return web.Response(text=json.dumps(resp))
+
+    async def callback_remove(self, request):
+        if not self._check_token(request):
+            raise web.HTTPForbidden()
+        url_id = request.query["id"]
+        self._http_callbacks[int(url_id)] = None
+        return web.Response(text=json.dumps({"success": True}))
+
     async def nuki_list(self, request):
         if not self._check_token(request):
             raise web.HTTPForbidden()
         resp = [{"nukiId": nuki.config["id"],
-                 "deviceType":  DeviceType.SMARTLOCK_1_2.value,  # How to get this from bt api?
+                 "deviceType": DeviceType.SMARTLOCK_1_2.value,  # How to get this from bt api?
                  "name": nuki.config["name"],
                  "lastKnownState": {
                      "mode": nuki.last_state["nuki_state"],
                      "state": nuki.last_state["lock_state"].value,
                      "stateName": nuki.last_state["lock_state"].name,
                      "batteryCritical": nuki.is_battery_critical,
+                     "batteryCharging": nuki.is_battery_charging,
                      "batteryChargeState": nuki.battery_percentage,
                      "keypadBatteryCritical": False,  # How to get this from bt api?
                      "doorsensorState": nuki.last_state["door_sensor_state"].value,

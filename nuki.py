@@ -97,10 +97,15 @@ class NukiManager:
         self.name = name
         self.app_id = app_id
         self.type_id = NukiClientType.BRIDGE
+        self.newstate_callback = None
 
         self._devices = {}
         self._scanner = BleakScanner()
         self._scanner.register_detection_callback(self._detected_ibeacon)
+
+    async def nuki_newstate(self, nuki):
+        if self.newstate_callback:
+            await self.newstate_callback(nuki)
 
     def __getitem__(self, index):
         return list(self._devices.values())[index]
@@ -164,6 +169,10 @@ class Nuki:
         return bool(self.last_state["critical_battery_state"] & 1)
 
     @property
+    def is_battery_charging(self):
+        return bool(self.last_state["critical_battery_state"] & 2)
+
+    @property
     def battery_percentage(self):
         return ((self.last_state["critical_battery_state"] & 252) >> 2) * 2
 
@@ -194,7 +203,7 @@ class Nuki:
     async def _parse_command(self, data):
         command, = struct.unpack("<H", data[:2])
         command = NukiCommand(command)
-        logging.info(f"Parsing command: {command=} {data=}")
+        logging.debug(f"Parsing command: {command=} {data=}")
 
         if command == NukiCommand.CHALLENGE:
             return command, {"nonce": data[2:-2]}
@@ -273,7 +282,7 @@ class Nuki:
 
     async def _notification_handler(self, sender, data):
         if sender == 138:
-            # 138 is the airing handler, it is not encrypted
+            # 138 is the pairing handler, it is not encrypted
             command, data = await self._parse_command(bytes(data))
         else:
             uncrypted = self._decrypt_command(bytes(data))
@@ -287,11 +296,15 @@ class Nuki:
                 await self.get_config()
             else:
                 await self.disconnect()
+            if self.config and self.last_state:
+                await self.manager.nuki_newstate(self)
 
         elif command == NukiCommand.CONFIG:
             self.config = data
             logging.info(f"Config: {self.config}")
             await self.disconnect()
+            if self.config and self.last_state:
+                await self.manager.nuki_newstate(self)
 
         elif command == NukiCommand.PUBLIC_KEY:
             self.nuki_public_key = data["public_key"]
@@ -375,7 +388,6 @@ class Nuki:
 
     async def disconnect(self):
         logging.info("Nuki disconnecting")
-        await self._client.stop_notify(BLE_SERVICE_CHAR)
         await self._client.disconnect()
         await self.manager.start_scanning()
 
