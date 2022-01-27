@@ -86,7 +86,9 @@ class WebServer:
             ts = request.query["ts"]
             hash_256 = hashlib.sha256(f"{ts},{rnr},{self._token}".encode("utf-8")).hexdigest()
             return hash_256 == request.query["hash"]
-        return False  # self._token == request.query["token"]
+        elif "token" in request.query:
+            return self._token == request.query["token"]
+        return False
 
     async def nuki_lockaction(self, request):
         if not self._check_token(request):
