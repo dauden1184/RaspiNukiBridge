@@ -2,7 +2,7 @@
 Simple Nuki Bridge implementation using asyncio.
 
 Minimal implementation of the Nuki Bridge protocols in python (both HTTP and BLE), I use it on a raspberry pi zero W and a Nuki smartlock V2.  
-Right now **pairing**, **lock**, **unlock**, **unlatch** and HTTP callbacks are implemented, it works fine with the [Homeassistant Nuki integration](https://www.home-assistant.io/integrations/nuki/).
+Right now **pairing**, **lock**, **unlock**, **unlatch** and HTTP callbacks are implemented, it works fine with the [Homeassistant Nuki integration](https://www.home-assistant.io/integrations/nuki/) and the [hass_nuki_ng integration](https://github.com/kvj/hass_nuki_ng).
 
 Nuki documentation:  
 https://developer.nuki.io/page/nuki-smart-lock-api-2/2/#heading--lock-action  
