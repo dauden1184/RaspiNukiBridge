@@ -31,7 +31,7 @@ This will generate a nuki.yaml file similar to this:
 server:
   host: 0.0.0.0
   port: 8080
-  name: PythonNukiBridge
+  name: RaspiNukiBridge
   app_id: xxxxxxxxx
   token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
