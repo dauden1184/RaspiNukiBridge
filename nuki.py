@@ -91,6 +91,9 @@ class NukiClientType(enum.Enum):
     KEYPAD = 0x03
 
 
+logger = logging.getLogger("raspinukibridge")
+
+
 class NukiManager:
 
     def __init__(self, name, app_id, adapter="hci0"):
@@ -122,11 +125,11 @@ class NukiManager:
         self._devices[nuki.address] = nuki
 
     async def start_scanning(self):
-        logging.info("Start scanning")
+        logger.info("Start scanning")
         await self._scanner.start()
 
     async def stop_scanning(self):
-        logging.info("Stop scanning")
+        logger.info("Stop scanning")
         try:
             await self._scanner.stop()
         except:
@@ -134,7 +137,7 @@ class NukiManager:
 
     async def _detected_ibeacon(self, device, advertisement_data):
         if device.address in self._devices:
-            logging.info(f"Nuki: {device.address}, RSSI: {device.rssi} {advertisement_data}")
+            logger.info(f"Nuki: {device.address}, RSSI: {device.rssi} {advertisement_data}")
             nuki = self._devices[device.address]
             nuki.set_ble_device(device)
             nuki.rssi = device.rssi
@@ -207,7 +210,7 @@ class Nuki:
     async def _parse_command(self, data):
         command, = struct.unpack("<H", data[:2])
         command = NukiCommand(command)
-        logging.debug(f"Parsing command: {command=} {data=}")
+        logger.debug(f"Parsing command: {command=} {data=}")
 
         if command == NukiCommand.CHALLENGE:
             return command, {"nonce": data[2:-2]}
@@ -270,12 +273,12 @@ class Nuki:
 
         elif command == NukiCommand.STATUS:
             status = struct.unpack('<B', data[2:-2])
-            logging.error(f"Last action status: {status}")
+            logger.error(f"Last action status: {status}")
             return command, {"status": status}
 
         elif command == NukiCommand.ERROR_REPORT:
             struct.unpack('<bH', data[2:-2])
-            logging.error(f"Error {data}")
+            logger.error(f"Error {data}")
             await self.disconnect()
             return command, data
 
@@ -285,7 +288,8 @@ class Nuki:
         self._client = BleakClient(ble_device)
 
     async def _notification_handler(self, sender, data):
-        if sender == 138:
+        logger.debug(f"Notification handler: {sender=}, {data=}")
+        if sender == self._pairing_handle:
             # 138 is the pairing handler, it is not encrypted
             command, data = await self._parse_command(bytes(data))
         else:
@@ -295,7 +299,7 @@ class Nuki:
         if command == NukiCommand.KEYTURNER_STATES:
             update_config = not self.config or (self.last_state["current_update_count"] != data["current_update_count"])
             self.last_state = data
-            logging.info(f"State: {self.last_state}")
+            logger.info(f"State: {self.last_state}")
             if update_config:
                 await self.get_config()
             else:
@@ -305,7 +309,7 @@ class Nuki:
 
         elif command == NukiCommand.CONFIG:
             self.config = data
-            logging.info(f"Config: {self.config}")
+            logger.info(f"Config: {self.config}")
             await self.disconnect()
             if self.config and self.last_state:
                 await self.manager.nuki_newstate(self)
@@ -313,7 +317,7 @@ class Nuki:
         elif command == NukiCommand.PUBLIC_KEY:
             self.nuki_public_key = data["public_key"]
             self._create_shared_key()
-            logging.info(f"Nuki {self.address} public key: {self.nuki_public_key.hex()}")
+            logger.info(f"Nuki {self.address} public key: {self.nuki_public_key.hex()}")
             self._challenge_command = NukiCommand.PUBLIC_KEY
             cmd = self._prepare_command(NukiCommand.PUBLIC_KEY.value, self.bridge_public_key)
             await self._send_data(BLE_PAIRING_CHAR, cmd)
@@ -334,7 +338,7 @@ class Nuki:
                     self._pairing_callback = None
 
         elif command == NukiCommand.CHALLENGE and self._challenge_command:
-            logging.debug(f"Challenge for {self._challenge_command}")
+            logger.debug(f"Challenge for {self._challenge_command}")
             if self._challenge_command == NukiCommand.REQUEST_CONFIG:
                 cmd = self._encrypt_command(NukiCommand.REQUEST_CONFIG.value, data["nonce"])
                 await self._send_data(BLE_SERVICE_CHAR, cmd)
@@ -372,9 +376,10 @@ class Nuki:
             try:
                 if not self._client.is_connected:
                     await self.connect()
+                logger.debug(f"Sending data to {characteristic}: {data}")
                 await self._client.write_gatt_char(characteristic, data, True)
             except Exception as exc:
-                logging.error(f"Error: {exc}")
+                logger.error(f"Error: {exc}")
                 await asyncio.sleep(1)
             else:
                 break
@@ -385,32 +390,37 @@ class Nuki:
         if not self._client:
             self._client = self.manager.get_client(self.address)
         await self.manager.stop_scanning()
-        logging.info("Nuki connecting")
+        logger.info("Nuki connecting")
         await self._client.connect()
+        if not self._pairing_handle:
+            await self._client.get_services()
+            self._pairing_handle = self._client.services[BLE_PAIRING_CHAR].handle
+            logger.debug(f"{self._pairing_handle=}")
         notification_char = notification_char or BLE_SERVICE_CHAR
         await self._client.start_notify(notification_char, self._notification_handler)
+        logger.info("Connected")
 
     async def disconnect(self):
-        logging.info("Nuki disconnecting")
+        logger.info("Nuki disconnecting")
         await self._client.disconnect()
         await self.manager.start_scanning()
 
     async def update_state(self):
-        logging.info("Updating nuki state")
+        logger.info("Updating nuki state")
         self._challenge_command = NukiCommand.KEYTURNER_STATES
         payload = NukiCommand.KEYTURNER_STATES.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
         await self._send_data(BLE_SERVICE_CHAR, cmd)
 
     async def lock(self):
-        logging.info("Locking nuki")
+        logger.info("Locking nuki")
         self._challenge_command = NukiAction.LOCK
         payload = NukiCommand.CHALLENGE.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
         await self._send_data(BLE_SERVICE_CHAR, cmd)
 
     async def unlock(self):
-        logging.info("Unlocking")
+        logger.info("Unlocking")
         self._challenge_command = NukiAction.UNLOCK
         payload = NukiCommand.CHALLENGE.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
@@ -423,14 +433,14 @@ class Nuki:
         await self._send_data(BLE_SERVICE_CHAR, cmd)
 
     async def lock_action(self, action):
-        logging.info(f"Lock action {action}")
+        logger.info(f"Lock action {action}")
         self._challenge_command = NukiAction(action)
         payload = NukiCommand.CHALLENGE.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
         await self._send_data(BLE_SERVICE_CHAR, cmd)
 
     async def get_config(self):
-        logging.info("Retrieve nuki configuration")
+        logger.info("Retrieve nuki configuration")
         self._challenge_command = NukiCommand.REQUEST_CONFIG
         payload = NukiCommand.CHALLENGE.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
