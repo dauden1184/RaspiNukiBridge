@@ -160,6 +160,7 @@ class Nuki:
         self.last_state = None
         self.config = {}
 
+        self._pairing_handle = None
         self._client = None
         self._challenge_command = None
         self._pairing_callback = None
