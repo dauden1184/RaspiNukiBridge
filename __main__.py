@@ -7,13 +7,25 @@ import datetime
 import hashlib
 import argparse
 import uuid
+import sys
+
 
 from nacl.public import PrivateKey
 from aiohttp import web, ClientSession
 
 from nuki import Nuki, NukiManager, BridgeType, DeviceType
 
-logging.basicConfig(level=logging.INFO)
+LOG_FORMAT = "%(asctime)s.%(msecs)03d|%(levelname).1s|%(filename)s:%(lineno)d|%(message)s"
+
+logger = logging.getLogger("raspinukibridge")
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(logging.Formatter(fmt=LOG_FORMAT, datefmt="%Y-%m-%d %H:%M:%S"))
+logger.addHandler(handler)
+
+logging.getLogger("aiohttp").addHandler(handler)
+logging.getLogger("aiohttp").setLevel(logging.ERROR)
+logging.getLogger("bleak").addHandler(handler)
+logging.getLogger("bleak").setLevel(logging.ERROR)
 
 
 class WebServer:
@@ -42,7 +54,7 @@ class WebServer:
         web.run_app(app, host=self._host, port=self._port)
 
     async def _newstate(self, nuki):
-        logging.info(f"Nuki new state: {nuki.last_state}")
+        logger.info(f"Nuki new state: {nuki.last_state}")
         if any(self._http_callbacks):
             async with ClientSession() as session:
                 for url in filter(None, self._http_callbacks):
@@ -59,7 +71,7 @@ class WebServer:
                         async with session.post(url, data=json.dumps(data)) as resp:
                             await resp.text()
                     except:
-                        logging.exception(f"Error on http callbak {url}")
+                        logger.exception(f"Error on http callbak {url}")
 
     async def _startup(self, _app):
         self._start_datetime = datetime.datetime.now()
@@ -75,7 +87,7 @@ class WebServer:
                 break
         if not self.nuki_manager.newstate_callback:
             self.nuki_manager.newstate_callback = self._newstate
-        logging.info(f"Add http callback: {callback_url}")
+        logger.info(f"Add http callback: {callback_url}")
         return web.Response(text=json.dumps({"success": True}))
 
     async def callback_list(self, request):
@@ -178,7 +190,21 @@ if __name__ == "__main__":
     parser.add_argument("--config", metavar=('CONFIG_FILE',), help="Specify the yaml file to use")
     parser.add_argument("--pair", metavar=('MAC_ADDRESS',), help="Pair to a nuki smartlock")
     parser.add_argument("--generate-config", action='store_true', help="Generate a new configuration file")
+    parser.add_argument("--verbose", nargs='?', const=1, type=int, default=0, help="More logs")
     args = parser.parse_args()
+
+    if not args.verbose:
+        logger.setLevel(level=logging.INFO)
+        logging.getLogger("aiohttp").setLevel(level=logging.ERROR)
+        logging.getLogger("bleak").setLevel(level=logging.ERROR)
+    elif args.verbose == 1:
+        logger.setLevel(level=logging.DEBUG)
+        logging.getLogger("aiohttp").setLevel(level=logging.INFO)
+        logging.getLogger("bleak").setLevel(level=logging.INFO)
+    elif args.verbose == 2:
+        logger.setLevel(level=logging.DEBUG)
+        logging.getLogger("aiohttp").setLevel(level=logging.DEBUG)
+        logging.getLogger("bleak").setLevel(level=logging.DEBUG)
 
     if args.generate_config:
         app_id = random.getrandbits(32)
@@ -203,20 +229,20 @@ if __name__ == "__main__":
 
     if args.pair:
         address = args.pair
-        logging.info(f"Generatig keys for Nuki {address}")
+        logger.info(f"Generatig keys for Nuki {address}")
         keypair = PrivateKey.generate()
         bridge_public_key = keypair.public_key.__bytes__()
         bridge_private_key = keypair.__bytes__()
-        logging.info(f"bridge_public_key: {bridge_public_key.hex()}")
-        logging.info(f"bridge_private_key: {bridge_private_key.hex()}")
+        logger.info(f"bridge_public_key: {bridge_public_key.hex()}")
+        logger.info(f"bridge_private_key: {bridge_private_key.hex()}")
         nuki = Nuki(address, None, None, bridge_public_key, bridge_private_key)
         nuki_manager.add_nuki(nuki)
 
         loop = asyncio.get_event_loop()
 
         def pairing_completed(paired_nuki):
-            logging.info(f"Pairing completed, nuki_public_key: {paired_nuki.nuki_public_key.hex()}")
-            logging.info(f"Pairing completed, auth_id: {paired_nuki.auth_id.hex()}")
+            logger.info(f"Pairing completed, nuki_public_key: {paired_nuki.nuki_public_key.hex()}")
+            logger.info(f"Pairing completed, auth_id: {paired_nuki.auth_id.hex()}")
             loop.stop()
         loop.create_task(nuki.pair(pairing_completed))
         loop.run_forever()
