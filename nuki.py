@@ -394,7 +394,6 @@ class Nuki:
         logger.info("Nuki connecting")
         await self._client.connect()
         if not self._pairing_handle:
-            await self._client.get_services()
             self._pairing_handle = self._client.services[BLE_PAIRING_CHAR].handle
             logger.debug(f"{self._pairing_handle=}")
         notification_char = notification_char or BLE_SERVICE_CHAR
