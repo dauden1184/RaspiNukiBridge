@@ -36,7 +36,7 @@ class WebServer:
         self._token = token
         self.nuki_manager = nuki_manager
         self._start_datetime = None
-        self._server_id = uuid.getnode()
+        self._server_id = uuid.getnode() & 0xFFFFFFFF  # Truncate server_id to 32 bit, OpenHub doesn't like it too big
         self._http_callbacks = [None, None, None]  # Nuki Bridge support up to 3 callbacks
 
     def start(self):
