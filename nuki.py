@@ -211,7 +211,7 @@ class Nuki:
     async def _parse_command(self, data):
         command, = struct.unpack("<H", data[:2])
         command = NukiCommand(command)
-        logger.debug(f"Parsing command: {command=} {data=}")
+        logger.debug(f"Parsing command: {command}, data: {data}")
 
         if command == NukiCommand.CHALLENGE:
             return command, {"nonce": data[2:-2]}
@@ -289,7 +289,7 @@ class Nuki:
         self._client = BleakClient(ble_device)
 
     async def _notification_handler(self, sender, data):
-        logger.debug(f"Notification handler: {sender=}, {data=}")
+        logger.debug(f"Notification handler: {sender}, data: {data}")
         if sender == self._pairing_handle:
             # 138 is the pairing handler, it is not encrypted
             command, data = await self._parse_command(bytes(data))
@@ -395,7 +395,7 @@ class Nuki:
         await self._client.connect()
         if not self._pairing_handle:
             self._pairing_handle = self._client.services[BLE_PAIRING_CHAR].handle
-            logger.debug(f"{self._pairing_handle=}")
+            logger.debug(f"Pairing handle: {self._pairing_handle}")
         notification_char = notification_char or BLE_SERVICE_CHAR
         await self._client.start_notify(notification_char, self._notification_handler)
         logger.info("Connected")
