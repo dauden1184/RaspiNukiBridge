@@ -238,7 +238,7 @@ class Nuki:
                              }
         elif command == NukiCommand.CONFIG:
             values = struct.unpack("<I32sffBBBBBHBBBBBhBBBBBBBBBBBBBBH", data[:74])
-            return command, {"id": int(hex(values[0])[2:]),
+            return command, {"id": values[0],
                              "name": values[1].split(b"\x00")[0].decode(),
                              "latitude": values[2],
                              "longitude": values[3],
