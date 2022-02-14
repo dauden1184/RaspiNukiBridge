@@ -211,13 +211,15 @@ class Nuki:
     async def _parse_command(self, data):
         command, = struct.unpack("<H", data[:2])
         command = NukiCommand(command)
+        #crc = data[-2:]
+        data = data[2:-2]
         logger.debug(f"Parsing command: {command}, data: {data}")
 
         if command == NukiCommand.CHALLENGE:
-            return command, {"nonce": data[2:-2]}
+            return command, {"nonce": data}
 
         elif command == NukiCommand.KEYTURNER_STATES:
-            values = struct.unpack("<BBBHBBBBBHBBBBBBBH", data[2:-2])
+            values = struct.unpack("<BBBHBBBBBHBBBBBBBH", data[:21])
             return command, {"nuki_state": values[0],
                              "lock_state": NukiState(values[1]),
                              "trigger": values[2],
@@ -235,7 +237,7 @@ class Nuki:
                              # "accessory_battery_state": values[18],  # It doesn't exist?
                              }
         elif command == NukiCommand.CONFIG:
-            values = struct.unpack("<I32sffBBBBBHBBBBBhBBBBBBBBBBBBBBH", data[2:-2])
+            values = struct.unpack("<I32sffBBBBBHBBBBBhBBBBBBBBBBBBBBH", data[:74])
             return command, {"id": int(hex(values[0])[2:]),
                              "name": values[1].split(b"\x00")[0].decode(),
                              "latitude": values[2],
@@ -263,22 +265,22 @@ class Nuki:
                              }
 
         elif command == NukiCommand.PUBLIC_KEY:
-            return command, {"public_key": data[2:-2]}
+            return command, {"public_key": data}
 
         elif command == NukiCommand.AUTH_ID:
-            values = struct.unpack("<32s4s16s32s", data[2:-2])
+            values = struct.unpack("<32s4s16s32s", data[:84])
             return command, {"authenticator": values[0],
                              "auth_id": values[1],
                              "uuuid": values[2],
                              "nonce": values[3]}
 
         elif command == NukiCommand.STATUS:
-            status = struct.unpack('<B', data[2:-2])
+            status = struct.unpack('<B', data[:1])
             logger.error(f"Last action status: {status}")
             return command, {"status": status}
 
         elif command == NukiCommand.ERROR_REPORT:
-            struct.unpack('<bH', data[2:-2])
+            struct.unpack('<bH', data[:3])
             logger.error(f"Error {data}")
             await self.disconnect()
             return command, data
@@ -290,8 +292,8 @@ class Nuki:
 
     async def _notification_handler(self, sender, data):
         logger.debug(f"Notification handler: {sender}, data: {data}")
-        if sender == self._pairing_handle:
-            # 138 is the pairing handler, it is not encrypted
+        if sender == self._client.services[BLE_PAIRING_CHAR].handle:
+            # The pairing handler is not encrypted
             command, data = await self._parse_command(bytes(data))
         else:
             uncrypted = self._decrypt_command(bytes(data))
@@ -387,17 +389,14 @@ class Nuki:
         else:
             await self.disconnect()
 
-    async def connect(self, notification_char=None):
+    async def connect(self):
         if not self._client:
             self._client = self.manager.get_client(self.address)
         await self.manager.stop_scanning()
         logger.info("Nuki connecting")
         await self._client.connect()
-        if not self._pairing_handle:
-            self._pairing_handle = self._client.services[BLE_PAIRING_CHAR].handle
-            logger.debug(f"Pairing handle: {self._pairing_handle}")
-        notification_char = notification_char or BLE_SERVICE_CHAR
-        await self._client.start_notify(notification_char, self._notification_handler)
+        await self._client.start_notify(BLE_PAIRING_CHAR, self._notification_handler)
+        await self._client.start_notify(BLE_SERVICE_CHAR, self._notification_handler)
         logger.info("Connected")
 
     async def disconnect(self):
@@ -448,8 +447,6 @@ class Nuki:
 
     async def pair(self, callback):
         self._pairing_callback = callback
-        await self.connect(BLE_PAIRING_CHAR)
-
         self._challenge_command = NukiCommand.PUBLIC_KEY
         payload = NukiCommand.PUBLIC_KEY.value.to_bytes(2, "little")
         cmd = self._prepare_command(NukiCommand.REQUEST_DATA.value, payload)
