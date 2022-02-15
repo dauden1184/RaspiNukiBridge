@@ -53,6 +53,22 @@ class WebServer:
         app.on_startup.append(self._startup)
         web.run_app(app, host=self._host, port=self._port)
 
+    @staticmethod
+    def _get_nuki_last_state(nuki):
+        return {"mode": nuki.last_state["nuki_state"],
+                "state": nuki.last_state["lock_state"].value,
+                "stateName": nuki.last_state["lock_state"].name,
+                "batteryCritical": nuki.is_battery_critical,
+                "batteryCharging": nuki.is_battery_charging,
+                "batteryChargeState": nuki.battery_percentage,
+                "keypadBatteryCritical": False,  # How to get this from bt api?
+                "doorsensorState": nuki.last_state["door_sensor_state"].value,
+                "doorsensorStateName": nuki.last_state["door_sensor_state"].name,
+                "ringactionTimestamp": None,  # How to get this from bt api?
+                "ringactionState": None,  # How to get this from bt api?
+                "timestamp": nuki.last_state["current_time"].isoformat().split(".")[0],
+                }
+
     async def _newstate(self, nuki):
         logger.info(f"Nuki new state: {nuki.last_state}")
         if any(self._http_callbacks):
@@ -60,14 +76,8 @@ class WebServer:
                 for url in filter(None, self._http_callbacks):
                     try:
                         data = {"nukiId": hex(nuki.config["id"])[2:],
-                                "deviceType": DeviceType.SMARTLOCK_1_2.value,  # How to get this from bt api?
-                                "mode": nuki.last_state["nuki_state"],
-                                "state": nuki.last_state["lock_state"].value,
-                                "stateName": nuki.last_state["lock_state"].name,
-                                "batteryCritical": nuki.is_battery_critical,
-                                "batteryCharging": nuki.is_battery_charging,
-                                "batteryChargeState": nuki.battery_percentage,
-                                "keypadBatteryCritical": False}  # How to get this from bt api?
+                                "deviceType": DeviceType.SMARTLOCK_1_2.value}  # How to get this from bt api?
+                        data.update(self._get_nuki_last_state(nuki))
                         async with session.post(url, data=json.dumps(data)) as resp:
                             await resp.text()
                     except:
@@ -109,20 +119,7 @@ class WebServer:
         resp = [{"nukiId": hex(nuki.config["id"])[2:],
                  "deviceType": DeviceType.SMARTLOCK_1_2.value,  # How to get this from bt api?
                  "name": nuki.config["name"],
-                 "lastKnownState": {
-                     "mode": nuki.last_state["nuki_state"],
-                     "state": nuki.last_state["lock_state"].value,
-                     "stateName": nuki.last_state["lock_state"].name,
-                     "batteryCritical": nuki.is_battery_critical,
-                     "batteryCharging": nuki.is_battery_charging,
-                     "batteryChargeState": nuki.battery_percentage,
-                     "keypadBatteryCritical": False,  # How to get this from bt api?
-                     "doorsensorState": nuki.last_state["door_sensor_state"].value,
-                     "doorsensorStateName": nuki.last_state["door_sensor_state"].name,
-                     "ringactionTimestamp": None,  # How to get this from bt api?
-                     "ringactionState": None,  # How to get this from bt api?
-                     "timestamp": nuki.last_state["current_time"].isoformat()[:-7],
-                 }} for nuki in self.nuki_manager if nuki.config]
+                 "lastKnownState": self._get_nuki_last_state(nuki)} for nuki in self.nuki_manager if nuki.config]
         return web.Response(text=json.dumps(resp))
 
     async def nuki_info(self, request):
@@ -166,7 +163,7 @@ class WebServer:
         if not self._check_token(request):
             raise web.HTTPForbidden()
         n = self.nuki_manager.nuki_by_id(int(request.query["nukiId"], base=16))
-        return web.Response(text=json.dumps(n.last_state))
+        return web.Response(text=json.dumps(self._get_nuki_last_state(n)))
 
     async def nuki_lock(self, request):
         if not self._check_token(request):
