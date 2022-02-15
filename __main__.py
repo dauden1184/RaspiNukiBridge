@@ -76,7 +76,7 @@ class WebServer:
                 for url in filter(None, self._http_callbacks):
                     try:
                         data = {"nukiId": hex(nuki.config["id"])[2:],
-                                "deviceType": DeviceType.SMARTLOCK_1_2.value}  # How to get this from bt api?
+                                "deviceType": nuki.device_type.value}  # How to get this from bt api?
                         data.update(self._get_nuki_last_state(nuki))
                         async with session.post(url, data=json.dumps(data)) as resp:
                             await resp.text()
@@ -117,7 +117,7 @@ class WebServer:
         if not self._check_token(request):
             raise web.HTTPForbidden()
         resp = [{"nukiId": hex(nuki.config["id"])[2:],
-                 "deviceType": DeviceType.SMARTLOCK_1_2.value,  # How to get this from bt api?
+                 "deviceType": nuki.device_type.value,  # How to get this from bt api?
                  "name": nuki.config["name"],
                  "lastKnownState": self._get_nuki_last_state(nuki)} for nuki in self.nuki_manager if nuki.config]
         return web.Response(text=json.dumps(resp))
@@ -134,7 +134,7 @@ class WebServer:
                 "currentTime": datetime.datetime.now().isoformat()[:-7] + "Z",
                 "serverConnected": False,
                 "scanResults": [{"nukiId": hex(nuki.config["id"])[2:],
-                                 "type": DeviceType.SMARTLOCK_1_2.value,  # How to get this from bt api?
+                                 "type": nuki.device_type.value,  # How to get this from bt api?
                                  "name": nuki.config["name"],
                                  "rssi": nuki.rssi,
                                  "paired": True} for nuki in self.nuki_manager if nuki.config]}
