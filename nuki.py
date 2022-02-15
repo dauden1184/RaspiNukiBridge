@@ -141,7 +141,7 @@ class NukiManager:
             nuki = self._devices[device.address]
             nuki.set_ble_device(device)
             nuki.rssi = device.rssi
-            if not nuki.last_state or list(advertisement_data.manufacturer_data.values())[0][-1] == 0xC5:
+            if not nuki.last_state or list(advertisement_data.manufacturer_data.values())[0][-1] & 0x1:
                 await nuki.update_state()
             elif not nuki.config:
                 await nuki.get_config()
