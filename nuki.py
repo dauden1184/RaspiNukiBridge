@@ -143,6 +143,8 @@ class NukiManager:
             nuki.rssi = device.rssi
             if not nuki.last_state or list(advertisement_data.manufacturer_data.values())[0][-1] == 0xC5:
                 await nuki.update_state()
+            elif not nuki.config:
+                await nuki.get_config()
 
 
 class Nuki:
@@ -164,6 +166,7 @@ class Nuki:
         self._client = None
         self._challenge_command = None
         self._pairing_callback = None
+        self._connection_timeout = None
 
         if nuki_public_key and bridge_private_key:
             self._create_shared_key()
@@ -398,11 +401,20 @@ class Nuki:
         await self._client.start_notify(BLE_PAIRING_CHAR, self._notification_handler)
         await self._client.start_notify(BLE_SERVICE_CHAR, self._notification_handler)
         logger.info("Connected")
+        self._connection_timeout = asyncio.create_task(self._timeout(10))
+
+    async def _timeout(self, timeout):
+        await asyncio.sleep(timeout)
+        logger.info("Connection timeout")
+        await self.disconnect()
 
     async def disconnect(self):
         logger.info("Nuki disconnecting")
         await self._client.disconnect()
         await self.manager.start_scanning()
+        if self._connection_timeout:
+            self._connection_timeout.cancel()
+            self._connection_timeout = None
 
     async def update_state(self):
         logger.info("Updating nuki state")
