@@ -397,12 +397,12 @@ class Nuki:
         # Sometimes the connection to the smartlock fails, retry 3 times
         for _ in range(3):
             try:
-                if not self._client.is_connected:
+                if not self._client or not self._client.is_connected:
                     await self.connect()
                 logger.debug(f"Sending data to {characteristic}: {data}")
                 await self._client.write_gatt_char(characteristic, data)
             except Exception as exc:
-                logger.error(f"Error: {exc}")
+                logger.error(f"Error: {type(exc)} {exc}")
                 await asyncio.sleep(1)
             else:
                 break
