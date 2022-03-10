@@ -95,7 +95,7 @@ After=network-online.target
 Type=simple
 Restart=always
 RestartSec=1
-user=pi
+User=pi
 WorkingDirectory=/home/pi/NukiBridge/
 ExecStart=pipenv run python .
 
