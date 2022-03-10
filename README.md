@@ -75,3 +75,38 @@ Save the file and start the bridge:
 ```
 python .
 ```
+
+## Start automatically at boot
+
+Create a new systemd service:
+
+```
+sudo nano /etc/systemd/system/nukibridge.service
+```
+
+Put this content in the file (change 'user' and 'WorkingDirectory' to your needs):
+
+```
+[Unit]
+Description=Nuki bridge
+After=network-online.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+user=pi
+WorkingDirectory=/home/pi/NukiBridge/
+ExecStart=pipenv run python .
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable the service and start it:
+
+```
+sudo systemctl daemon-reload
+sudo systemctl enable nukibridge.service
+sudo systemctl start nukibridge.service
+```
