@@ -180,6 +180,7 @@ class Nuki:
         self._challenge_command = None
         self._pairing_callback = None
         self._connection_timeout = None
+        self.retry = 3
 
         if nuki_public_key and bridge_private_key:
             self._create_shared_key()
@@ -396,7 +397,7 @@ class Nuki:
 
     async def _send_data(self, characteristic, data):
         # Sometimes the connection to the smartlock fails, retry 3 times
-        for _ in range(3):
+        for _ in range(self.retry):
             try:
                 if not self._client or not self._client.is_connected:
                     await self.connect()

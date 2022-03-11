@@ -250,7 +250,9 @@ if __name__ == "__main__":
             nuki_public_key = bytes.fromhex(ls["nuki_public_key"])
             bridge_public_key = bytes.fromhex(ls["bridge_public_key"])
             bridge_private_key = bytes.fromhex(ls["bridge_private_key"])
-            nuki_manager.add_nuki(Nuki(address, auth_id, nuki_public_key, bridge_public_key, bridge_private_key))
+            n = Nuki(address, auth_id, nuki_public_key, bridge_public_key, bridge_private_key)
+            n.retry = ls.get("retry", 3)
+            nuki_manager.add_nuki(n)
 
         host = data["server"]["host"]
         port = data["server"]["port"]
