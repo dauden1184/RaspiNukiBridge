@@ -405,7 +405,8 @@ class Nuki:
                 await self._client.write_gatt_char(characteristic, data)
             except Exception as exc:
                 logger.error(f"Error: {type(exc)} {exc}")
-                await asyncio.sleep(1)
+                #await self.disconnect()
+                await asyncio.sleep(2)
             else:
                 break
         else:
