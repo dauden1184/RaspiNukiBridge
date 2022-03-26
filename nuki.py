@@ -180,7 +180,7 @@ class Nuki:
         self._challenge_command = None
         self._pairing_callback = None
         self._connection_timeout = None
-        self.retry = 1
+        self.retry = 3
 
         if nuki_public_key and bridge_private_key:
             self._create_shared_key()
@@ -422,6 +422,7 @@ class Nuki:
         await self._client.start_notify(BLE_PAIRING_CHAR, self._notification_handler)
         await self._client.start_notify(BLE_SERVICE_CHAR, self._notification_handler)
         logger.info("Connected")
+        # TODO: figure out if we really need this, it might interfere with current execution
         #self._connection_timeout = asyncio.create_task(self._timeout(30))
 
     async def _timeout(self, timeout):
@@ -435,7 +436,8 @@ class Nuki:
         if self._connection_timeout:
             self._connection_timeout.cancel()
             self._connection_timeout = None
-        #await self.manager.start_scanning()
+        logger.info("Stopping Scanning")
+        await self.manager.start_scanning()
 
     async def update_state(self):
         logger.info("Updating nuki state")
