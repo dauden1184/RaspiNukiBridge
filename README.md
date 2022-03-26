@@ -16,6 +16,16 @@ Clone the repository.
 git clone https://github.com/dauden1184/RaspiNukiBridge.git
 ```
 
+Optional: Create virtual environment
+```
+python3 -m venv .venv
+```
+
+Optional: Load virtual environment
+```
+source .venv/bin/activate
+```
+
 Install the requirements.
 ```
 pip install -r requirements.txt
