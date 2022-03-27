@@ -405,8 +405,7 @@ class Nuki:
                 await self._client.write_gatt_char(characteristic, data)
             except Exception as exc:
                 logger.error(f"Error: {type(exc)} {exc}")
-                #await self.disconnect()
-                await asyncio.sleep(2)
+                await asyncio.sleep(1)
             else:
                 break
         else:
@@ -419,12 +418,11 @@ class Nuki:
             return
         await self.manager.stop_scanning()
         logger.info("Nuki connecting")
-        await self._client.connect(timeout = 30) # default 10s is not enough for nuki TODO: put this into config variable
+        await self._client.connect(timeout = 25) # default 10s is not enough for nuki TODO: put this into config variable
         await self._client.start_notify(BLE_PAIRING_CHAR, self._notification_handler)
         await self._client.start_notify(BLE_SERVICE_CHAR, self._notification_handler)
         logger.info("Connected")
-        # TODO: figure out if we really need this, it might interfere with current execution
-        #self._connection_timeout = asyncio.create_task(self._timeout(30))
+        self._connection_timeout = asyncio.create_task(self._timeout(30))
 
     async def _timeout(self, timeout):
         await asyncio.sleep(timeout)
