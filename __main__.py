@@ -252,6 +252,8 @@ if __name__ == "__main__":
             bridge_private_key = bytes.fromhex(ls["bridge_private_key"])
             n = Nuki(address, auth_id, nuki_public_key, bridge_public_key, bridge_private_key)
             n.retry = ls.get("retry", 3)
+            n.connection_timeout = ls.get("connection_timeout", 10)
+            n.command_timeout = ls.get("command_timeout", 30)
             nuki_manager.add_nuki(n)
 
         host = data["server"]["host"]
