@@ -306,7 +306,7 @@ class Nuki:
             return command, {"status": StatusCode(status)}
 
         elif command == NukiCommand.ERROR_REPORT:
-            data, = struct.unpack('<bH', data[:3])
+            data, _cmd = struct.unpack('<bH', data[:3])
             return command, data
 
         return None, None
@@ -435,7 +435,7 @@ class Nuki:
         self._command_timeout_task = asyncio.create_task(self._start_cmd_timeout())
 
     async def _start_cmd_timeout(self):
-        await asyncio.sleep(self._command_timeout)
+        await asyncio.sleep(self.command_timeout)
         logger.info("Connection timeout")
         await self.disconnect()
 
