@@ -427,6 +427,8 @@ class Nuki:
         await self.manager.stop_scanning()
         logger.info("Nuki connecting")
         await self._client.connect(timeout=self.connection_timeout)
+        logger.debug(f"Services {[str(s) for s in self._client.services]}")
+        logger.debug(f"Characteristics {[str(v) for v in self._client.services.characteristics.values()]}")
         await self._client.start_notify(BLE_PAIRING_CHAR, self._notification_handler)
         await self._client.start_notify(BLE_SERVICE_CHAR, self._notification_handler)
         logger.info("Connected")
