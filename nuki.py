@@ -63,6 +63,14 @@ class NukiCommand(enum.Enum):
 
 
 class NukiState(enum.Enum):
+    UNINITIALIZED = 0x00
+    PAIRING_MODE = 0x01
+    DOOR_MODE = 0x02
+    CONTINUOUS_MODE = 0x03
+    MAINTENANCE_MODE = 0x04
+
+
+class LockState(enum.Enum):
     UNCALIBRATED = 0x00
     LOCKED = 0x01
     UNLOCKING = 0x02
@@ -239,8 +247,8 @@ class Nuki:
 
         elif command == NukiCommand.KEYTURNER_STATES:
             values = struct.unpack("<BBBHBBBBBHBBBBBBBH", data[:21])
-            return command, {"nuki_state": values[0],
-                             "lock_state": NukiState(values[1]),
+            return command, {"nuki_state": NukiState(values[0]),
+                             "lock_state": LockState(values[1]),
                              "trigger": values[2],
                              "current_time": datetime.datetime(values[3], values[4], values[5],
                                                                values[6], values[7], values[8]),

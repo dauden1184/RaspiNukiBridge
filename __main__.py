@@ -55,7 +55,7 @@ class WebServer:
 
     @staticmethod
     def _get_nuki_last_state(nuki):
-        return {"mode": nuki.last_state["nuki_state"],
+        return {"mode": nuki.last_state["nuki_state"].value,
                 "state": nuki.last_state["lock_state"].value,
                 "stateName": nuki.last_state["lock_state"].name,
                 "batteryCritical": nuki.is_battery_critical,
