@@ -553,4 +553,6 @@ class Nuki:
         else:
             self.device_type = DeviceType.SMARTLOCK_1_2
         logger.info(f"Device type: {self.device_type}")
+        await self._client.start_notify(self._BLE_PAIRING_CHAR, self._notification_handler)
+        await self._client.start_notify(self._BLE_SERVICE_CHAR, self._notification_handler)
         await self._send_data(self._BLE_PAIRING_CHAR, cmd)
