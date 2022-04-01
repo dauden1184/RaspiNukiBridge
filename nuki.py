@@ -212,7 +212,7 @@ class Nuki:
     
     @device_type.setter
     def device_type(self, device_type: DeviceType):
-        if self._device_type == DeviceType.OPENER:
+        if device_type == DeviceType.OPENER:
             self._BLE_PAIRING_CHAR = BLE_OPENER_PAIRING_CHAR
             self._BLE_SERVICE_CHAR = BLE_OPENER_SERVICE_CHAR
         else:
