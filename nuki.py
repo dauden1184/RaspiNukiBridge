@@ -28,9 +28,9 @@ class BridgeType(enum.Enum):
 
 class DeviceType(enum.Enum):
     SMARTLOCK_1_2 = 0
-    OPENER = 1
-    SMARTDOOR = 2
-    SMARTLOCK_3 = 3
+    OPENER = 2
+    SMARTDOOR = 3
+    SMARTLOCK_3 = 4
 
 
 class DoorsensorState(enum.Enum):
