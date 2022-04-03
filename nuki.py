@@ -174,7 +174,10 @@ class NukiManager:
             nuki.set_ble_device(device)
             nuki.rssi = device.rssi
             if not nuki.device_type:
-                await nuki.connect()  # this will force the identification of the device type
+                try:
+                    await nuki.connect()  # this will force the identification of the device type
+                except:
+                    await self.start_scanning()
             if not nuki.last_state or tx_p & 0x1:
                 await nuki.update_state()
             elif not nuki.config:
