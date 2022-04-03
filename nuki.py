@@ -178,6 +178,7 @@ class NukiManager:
                     await nuki.connect()  # this will force the identification of the device type
                 except:
                     await self.start_scanning()
+                    return
             if not nuki.last_state or tx_p & 0x1:
                 await nuki.update_state()
             elif not nuki.config:
