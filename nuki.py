@@ -89,6 +89,15 @@ class LockState(enum.Enum):
     UNDEFINED = 0xFF
 
 
+class OpenerState(enum.Enum):
+    UNCALIBRATED = 0x00
+    LOCKED = 0x01
+    RTO_ACTIVE = 0x03
+    OPEN = 0x05
+    OPENING = 0x07
+    UNDEFINED = 0xFF
+
+
 class NukiAction(enum.Enum):
     NONE = 0x00
     UNLOCK = 0x01
@@ -268,7 +277,25 @@ class Nuki:
         if command == NukiCommand.CHALLENGE:
             return command, {"nonce": data}
 
-        elif command == NukiCommand.KEYTURNER_STATES:
+        elif self.device_type != DeviceType.OPENER and command == NukiCommand.KEYTURNER_STATES:
+            values = struct.unpack("<BBBHBBBBBHBBBBBBBH", data[:21])
+            return command, {"nuki_state": NukiState(values[0]),
+                             "lock_state": OpenerState(values[1]),
+                             "trigger": values[2],
+                             "current_time": datetime.datetime(values[3], values[4], values[5],
+                                                               values[6], values[7], values[8]),
+                             "timezone_offset": values[9],
+                             "critical_battery_state": values[10],
+                             "current_update_count": values[11],
+                             "lock_n_go_timer": values[12],
+                             "last_lock_action": NukiAction(values[13]),
+                             "last_lock_action_trigger": values[14],
+                             "last_lock_action_completion_status": values[15],
+                             "door_sensor_state": DoorsensorState(values[16]),
+                             "nightmode_active": values[17],
+                             # "accessory_battery_state": values[18],  # It doesn't exist?
+                             }
+        elif self.device_type == DeviceType.OPENER and command == NukiCommand.KEYTURNER_STATES:
             values = struct.unpack("<BBBHBBBBBHBBBBBBBH", data[:21])
             return command, {"nuki_state": NukiState(values[0]),
                              "lock_state": LockState(values[1]),
@@ -315,7 +342,7 @@ class Nuki:
                              }
 
         elif self.device_type == DeviceType.OPENER and command == NukiCommand.CONFIG:
-            values = struct.unpack("<I32sffBBBBBHBBBBBhBBBBBBBBBBBBBH", data[:73])
+            values = struct.unpack("<I32sffBBBBHBBBBBhBBBBBBBBBBBBBH", data[:72])
             return command, {"id": values[0],
                              "name": values[1].split(b"\x00")[0].decode(),
                              "latitude": values[2],
@@ -324,21 +351,20 @@ class Nuki:
                              "pairing_enabled": values[5],
                              "button_enabled": values[6],
                              "led_enabled": values[7],
-                             "led_brightness": values[8],
-                             "current_time": datetime.datetime(values[9], values[10], values[11],
-                                                               values[12], values[13], values[14]),
-                             "timezone_offset": values[15],
-                             "dst_mode": values[16],
-                             "has_fob": values[17],
-                             "fob_action_1": values[18],
-                             "fob_action_2": values[19],
-                             "fob_action_3": values[20],
-                             "operating_mode": values[21],
-                             "advertising_mode": values[22],
-                             "has_keypad": values[23],
-                             "firmware_version": f"{values[24]}.{values[25]}.{values[26]}",
-                             "hardware_revision": f"{values[27]}.{values[28]}",
-                             "timezone_id": values[29],
+                             "current_time": datetime.datetime(values[8], values[9], values[10],
+                                                               values[11], values[12], values[13]),
+                             "timezone_offset": values[14],
+                             "dst_mode": values[15],
+                             "has_fob": values[16],
+                             "fob_action_1": values[17],
+                             "fob_action_2": values[18],
+                             "fob_action_3": values[19],
+                             "operating_mode": values[20],
+                             "advertising_mode": values[21],
+                             "has_keypad": values[22],
+                             "firmware_version": f"{values[23]}.{values[24]}.{values[25]}",
+                             "hardware_revision": f"{values[26]}.{values[27]}",
+                             "timezone_id": values[28],
                              }
 
         elif command == NukiCommand.PUBLIC_KEY:
@@ -550,4 +576,5 @@ class Nuki:
         self._challenge_command = NukiCommand.PUBLIC_KEY
         payload = NukiCommand.PUBLIC_KEY.value.to_bytes(2, "little")
         cmd = self._prepare_command(NukiCommand.REQUEST_DATA.value, payload)
+        await self.connect()
         await self._send_data(self._BLE_PAIRING_CHAR, cmd)
