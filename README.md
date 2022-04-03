@@ -97,7 +97,7 @@ Restart=always
 RestartSec=1
 User=pi
 WorkingDirectory=/home/pi/NukiBridge/
-ExecStart=pipenv run python .
+ExecStart=python .
 
 [Install]
 WantedBy=multi-user.target
