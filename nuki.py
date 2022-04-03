@@ -283,7 +283,7 @@ class Nuki:
         elif self.device_type != DeviceType.OPENER and command == NukiCommand.KEYTURNER_STATES:
             values = struct.unpack("<BBBHBBBBBHBBBBBBBH", data[:21])
             return command, {"nuki_state": NukiState(values[0]),
-                             "lock_state": OpenerState(values[1]),
+                             "lock_state": LockState(values[1]),
                              "trigger": values[2],
                              "current_time": datetime.datetime(values[3], values[4], values[5],
                                                                values[6], values[7], values[8]),
@@ -301,7 +301,7 @@ class Nuki:
         elif self.device_type == DeviceType.OPENER and command == NukiCommand.KEYTURNER_STATES:
             values = struct.unpack("<BBBHBBBBBHBBBBBBBH", data[:21])
             return command, {"nuki_state": NukiState(values[0]),
-                             "lock_state": LockState(values[1]),
+                             "lock_state": OpenerState(values[1]),
                              "trigger": values[2],
                              "current_time": datetime.datetime(values[3], values[4], values[5],
                                                                values[6], values[7], values[8]),
