@@ -12,11 +12,12 @@ import nacl.secret
 from nacl.bindings.crypto_box import crypto_box_beforenm
 from bleak import BleakScanner, BleakClient
 
-
-BLE_SMARTLOCK_SERVICE_CHAR = "a92ee202-5501-11e4-916c-0800200c9a66"
+BLE_SMARTLOCK_PAIRING_SERVICE = "a92ee100-5501-11e4-916c-0800200c9a66"
+BLE_SMARTLOCK_CHAR = "a92ee202-5501-11e4-916c-0800200c9a66"
 BLE_SMARTLOCK_PAIRING_CHAR = 'a92ee101-5501-11e4-916c-0800200c9a66'
 
-BLE_OPENER_SERVICE_CHAR = "a92ae202-5501-11e4-916c-0800200c9a66"
+BLE_OPENER_PAIRING_SERVICE = "a92ae100-5501-11e4-916c-0800200c9a66"
+BLE_OPENER_CHAR = "a92ae202-5501-11e4-916c-0800200c9a66"
 BLE_OPENER_PAIRING_CHAR = 'a92ae101-5501-11e4-916c-0800200c9a66'
 
 
@@ -161,14 +162,10 @@ class NukiManager:
             logger.info(f"Nuki: {device.address}, RSSI: {device.rssi} {advertisement_data}")
             tx_p = manufacturer_data[-1]
             nuki = self._devices[device.address]
-            if not nuki.device_type:
-                if BLE_OPENER_PAIRING_CHAR in advertisement_data.service_uuids:
-                    nuki.device_type = DeviceType.OPENER
-                else:
-                    nuki.device_type = DeviceType.SMARTLOCK_3 if tx_p > 0xC5 else DeviceType.SMARTLOCK_1_2
-                logger.info(f"Device {nuki.address} is {nuki.device_type.name}")
             nuki.set_ble_device(device)
             nuki.rssi = device.rssi
+            if not nuki.device_type:
+                await nuki.connect()  # this will force the identification of the device type
             if not nuki.last_state or tx_p & 0x1:
                 await nuki.update_state()
             elif not nuki.config:
@@ -200,7 +197,7 @@ class Nuki:
         self.connection_timeout = 10
         self.command_timeout = 30
 
-        self._BLE_SERVICE_CHAR = None
+        self._BLE_CHAR = None
         self._BLE_PAIRING_CHAR = None
 
         if nuki_public_key and bridge_private_key:
@@ -214,11 +211,12 @@ class Nuki:
     def device_type(self, device_type: DeviceType):
         if device_type == DeviceType.OPENER:
             self._BLE_PAIRING_CHAR = BLE_OPENER_PAIRING_CHAR
-            self._BLE_SERVICE_CHAR = BLE_OPENER_SERVICE_CHAR
+            self._BLE_CHAR = BLE_OPENER_CHAR
         else:
             self._BLE_PAIRING_CHAR = BLE_SMARTLOCK_PAIRING_CHAR
-            self._BLE_SERVICE_CHAR = BLE_SMARTLOCK_SERVICE_CHAR
+            self._BLE_CHAR = BLE_SMARTLOCK_CHAR
         self._device_type = device_type
+        logger.info(f"Device type: {self.device_type}")
 
     def _create_shared_key(self):
         self._shared_key = crypto_box_beforenm(self.nuki_public_key, self.bridge_private_key)
@@ -365,6 +363,7 @@ class Nuki:
 
     def set_ble_device(self, ble_device):
         self._client = BleakClient(ble_device)
+        return self._client
 
     async def _notification_handler(self, sender, data):
         logger.debug(f"Notification handler: {sender}, data: {data}")
@@ -428,7 +427,7 @@ class Nuki:
             logger.debug(f"Challenge for {self._challenge_command}")
             if self._challenge_command == NukiCommand.REQUEST_CONFIG:
                 cmd = self._encrypt_command(NukiCommand.REQUEST_CONFIG.value, data["nonce"])
-                await self._send_data(self._BLE_SERVICE_CHAR, cmd)
+                await self._send_data(self._BLE_CHAR, cmd)
 
             elif self._challenge_command in NukiAction:
                 lock_action = self._challenge_command.value.to_bytes(1, "little")
@@ -436,7 +435,7 @@ class Nuki:
                 flags = 0
                 payload = lock_action + app_id + flags.to_bytes(1, "little") + data["nonce"]
                 cmd = self._encrypt_command(NukiCommand.LOCK_ACTION.value, payload)
-                await self._send_data(self._BLE_SERVICE_CHAR, cmd)
+                await self._send_data(self._BLE_CHAR, cmd)
 
             elif self._challenge_command == NukiCommand.PUBLIC_KEY:
                 value_r = self.bridge_public_key + self.nuki_public_key + data["nonce"]
@@ -466,7 +465,7 @@ class Nuki:
                 logger.debug(f"Sending data to {characteristic}: {data}")
                 await self._client.write_gatt_char(characteristic, data)
             except Exception as exc:
-                logger.error(f"Error: {type(exc)} {exc}")
+                logger.exception(f"Error: {type(exc)} {exc}")
                 await asyncio.sleep(1)
             else:
                 break
@@ -481,8 +480,14 @@ class Nuki:
         await self._client.connect(timeout=self.connection_timeout)
         logger.debug(f"Services {[str(s) for s in self._client.services]}")
         logger.debug(f"Characteristics {[str(v) for v in self._client.services.characteristics.values()]}")
+        if not self.device_type:
+            services = await self._client.get_services()
+            if services.get_characteristic(BLE_OPENER_PAIRING_CHAR):
+                self.device_type = DeviceType.OPENER
+            else:
+                self.device_type = DeviceType.SMARTLOCK_1_2
         await self._client.start_notify(self._BLE_PAIRING_CHAR, self._notification_handler)
-        await self._client.start_notify(self._BLE_SERVICE_CHAR, self._notification_handler)
+        await self._client.start_notify(self._BLE_CHAR, self._notification_handler)
         logger.info("Connected")
         self._command_timeout_task = asyncio.create_task(self._start_cmd_timeout())
 
@@ -504,55 +509,45 @@ class Nuki:
         self._challenge_command = NukiCommand.KEYTURNER_STATES
         payload = NukiCommand.KEYTURNER_STATES.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
-        await self._send_data(self._BLE_SERVICE_CHAR, cmd)
+        await self._send_data(self._BLE_CHAR, cmd)
 
     async def lock(self):
         logger.info("Locking nuki")
         self._challenge_command = NukiAction.LOCK
         payload = NukiCommand.CHALLENGE.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
-        await self._send_data(self._BLE_SERVICE_CHAR, cmd)
+        await self._send_data(self._BLE_CHAR, cmd)
 
     async def unlock(self):
         logger.info("Unlocking")
         self._challenge_command = NukiAction.UNLOCK
         payload = NukiCommand.CHALLENGE.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
-        await self._send_data(self._BLE_SERVICE_CHAR, cmd)
+        await self._send_data(self._BLE_CHAR, cmd)
 
     async def unlatch(self):
         self._challenge_command = NukiAction.UNLATCH
         payload = NukiCommand.CHALLENGE.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
-        await self._send_data(self._BLE_SERVICE_CHAR, cmd)
+        await self._send_data(self._BLE_CHAR, cmd)
 
     async def lock_action(self, action):
         logger.info(f"Lock action {action}")
         self._challenge_command = NukiAction(action)
         payload = NukiCommand.CHALLENGE.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
-        await self._send_data(self._BLE_SERVICE_CHAR, cmd)
+        await self._send_data(self._BLE_CHAR, cmd)
 
     async def get_config(self):
         logger.info("Retrieve nuki configuration")
         self._challenge_command = NukiCommand.REQUEST_CONFIG
         payload = NukiCommand.CHALLENGE.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
-        await self._send_data(self._BLE_SERVICE_CHAR, cmd)
+        await self._send_data(self._BLE_CHAR, cmd)
 
     async def pair(self, callback):
         self._pairing_callback = callback
         self._challenge_command = NukiCommand.PUBLIC_KEY
         payload = NukiCommand.PUBLIC_KEY.value.to_bytes(2, "little")
         cmd = self._prepare_command(NukiCommand.REQUEST_DATA.value, payload)
-        self._client = self.manager.get_client(self.address)
-        await self._client.connect(timeout=self.connection_timeout)
-        services = await self._client.get_services()
-        if services.get_characteristic(BLE_OPENER_PAIRING_CHAR):
-            self.device_type = DeviceType.OPENER
-        else:
-            self.device_type = DeviceType.SMARTLOCK_1_2
-        logger.info(f"Device type: {self.device_type}")
-        await self._client.start_notify(self._BLE_PAIRING_CHAR, self._notification_handler)
-        await self._client.start_notify(self._BLE_SERVICE_CHAR, self._notification_handler)
         await self._send_data(self._BLE_PAIRING_CHAR, cmd)
