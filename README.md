@@ -96,7 +96,7 @@ Type=simple
 Restart=always
 RestartSec=1
 User=pi
-WorkingDirectory=/home/pi/NukiBridge/
+WorkingDirectory=/home/pi/RaspiNukiBridge/
 ExecStart=python .
 
 [Install]
