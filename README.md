@@ -76,6 +76,21 @@ Save the file and start the bridge:
 python .
 ```
 
+## Connection timeout and retries
+
+In case of issues during the bluetooth connection to the nuki device, it is possible to set a higher connection timeout and the number of retries with the fields `connection_timeout` (default is 10 seconds) and `retries` (default is 3) like this:
+
+```
+smartlock:
+  - address: XX:XX:XX:XX:XX:XX
+    bridge_public_key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    bridge_private_key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    nuki_public_key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    auth_id: xxxxxxxx
+    connection_timeout: 30
+    retries: 5
+```
+
 ## Start automatically at boot
 
 Create a new systemd service:
