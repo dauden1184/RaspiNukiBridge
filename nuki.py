@@ -127,12 +127,22 @@ class NukiManager:
         self.name = name
         self.app_id = app_id
         self.type_id = NukiClientType.BRIDGE
-        self.newstate_callback = None
+        self._newstate_callback = None
 
         self._adapter = adapter
         self._devices = {}
         self._scanner = BleakScanner(adapter=self._adapter)
         self._scanner.register_detection_callback(self._detected_ibeacon)
+
+    @property
+    def newstate_callback(self):
+        return self._newstate_callback
+
+    @newstate_callback.setter
+    def newstate_callback(self, value):
+        self._newstate_callback = value
+        for device in self._devices.values():
+            asyncio.get_event_loop().create_task(self.newstate_callback(device))
 
     async def nuki_newstate(self, nuki):
         if self.newstate_callback:
