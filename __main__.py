@@ -188,11 +188,28 @@ class WebServer:
         return web.Response(text=res)
 
 
+def _add_devices_to_manager():
+    global address, auth_id, nuki_public_key, bridge_public_key, bridge_private_key, n
+    for ls in data["smartlock"]:
+        address = ls["address"]
+        auth_id = bytes.fromhex(ls["auth_id"])
+        nuki_public_key = bytes.fromhex(ls["nuki_public_key"])
+        bridge_public_key = bytes.fromhex(ls["bridge_public_key"])
+        bridge_private_key = bytes.fromhex(ls["bridge_private_key"])
+        n = Nuki(address, auth_id, nuki_public_key, bridge_public_key, bridge_private_key)
+        n.retry = ls.get("retry", 3)
+        n.connection_timeout = ls.get("connection_timeout", 10)
+        n.command_timeout = ls.get("command_timeout", 30)
+        nuki_manager.add_nuki(n)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", metavar=('CONFIG_FILE',), help="Specify the yaml file to use")
     parser.add_argument("--pair", metavar=('MAC_ADDRESS',), help="Pair to a nuki smartlock")
     parser.add_argument("--generate-config", action='store_true', help="Generate a new configuration file")
+    parser.add_argument("--unlock", action='store_true', help="Unlock")
+    parser.add_argument("--lock", action='store_true', help="Lock")
     parser.add_argument("--verbose", nargs='?', const=1, type=int, default=0, help="More logs")
     args = parser.parse_args()
 
@@ -250,20 +267,17 @@ if __name__ == "__main__":
         loop.create_task(nuki.pair(pairing_completed))
         loop.run_forever()
     else:
-        for ls in data["smartlock"]:
-            address = ls["address"]
-            auth_id = bytes.fromhex(ls["auth_id"])
-            nuki_public_key = bytes.fromhex(ls["nuki_public_key"])
-            bridge_public_key = bytes.fromhex(ls["bridge_public_key"])
-            bridge_private_key = bytes.fromhex(ls["bridge_private_key"])
-            n = Nuki(address, auth_id, nuki_public_key, bridge_public_key, bridge_private_key)
-            n.retry = ls.get("retry", 3)
-            n.connection_timeout = ls.get("connection_timeout", 10)
-            n.command_timeout = ls.get("command_timeout", 30)
-            nuki_manager.add_nuki(n)
+        _add_devices_to_manager()
 
-        host = data["server"]["host"]
-        port = data["server"]["port"]
-        token = data["server"]["token"]
-        web_server = WebServer(host, port, token, nuki_manager)
-        web_server.start()
+        if args.unlock:
+            device = nuki_manager.device_list[0]
+            asyncio.run(device.unlock())
+        elif args.lock:
+            device = nuki_manager.device_list[0]
+            asyncio.run(device.lock())
+        else:
+            host = data["server"]["host"]
+            port = data["server"]["port"]
+            token = data["server"]["token"]
+            web_server = WebServer(host, port, token, nuki_manager)
+            web_server.start()
