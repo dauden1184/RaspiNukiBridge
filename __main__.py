@@ -188,8 +188,7 @@ class WebServer:
         return web.Response(text=res)
 
 
-def _add_devices_to_manager():
-    global address, auth_id, nuki_public_key, bridge_public_key, bridge_private_key, n
+def _add_devices_to_manager(data, nuki_manager):
     for ls in data["smartlock"]:
         address = ls["address"]
         auth_id = bytes.fromhex(ls["auth_id"])
@@ -267,7 +266,7 @@ if __name__ == "__main__":
         loop.create_task(nuki.pair(pairing_completed))
         loop.run_forever()
     else:
-        _add_devices_to_manager()
+        _add_devices_to_manager(data, nuki_manager)
 
         if args.unlock:
             device = nuki_manager.device_list[0]
