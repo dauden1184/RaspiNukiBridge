@@ -71,7 +71,7 @@ class WebServer:
 
         if nuki.device_type == DeviceType.OPENER:
             state["ringactionTimestamp"] = nuki.last_state["current_time"].isoformat().split(".")[0]
-            state["ringactionState"] = not nuki.last_state["last_lock_action_completion_status"]
+            state["ringactionState"] = nuki.last_state["last_lock_action_completion_status"]
 
         return state
 
