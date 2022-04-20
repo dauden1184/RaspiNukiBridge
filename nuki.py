@@ -161,6 +161,10 @@ class NukiManager:
         nuki.manager = self
         self._devices[nuki.address] = nuki
 
+    @property
+    def device_list(self):
+        return list(self._devices.values())
+
     async def start_scanning(self):
         logger.info("Start scanning")
         await self._scanner.start()
