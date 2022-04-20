@@ -55,19 +55,25 @@ class WebServer:
 
     @staticmethod
     def _get_nuki_last_state(nuki):
-        return {"mode": nuki.last_state["nuki_state"].value,
-                "state": nuki.last_state["lock_state"].value,
-                "stateName": nuki.last_state["lock_state"].name,
-                "batteryCritical": nuki.is_battery_critical,
-                "batteryCharging": nuki.is_battery_charging,
-                "batteryChargeState": nuki.battery_percentage,
-                "keypadBatteryCritical": False,  # How to get this from bt api?
-                "doorsensorState": nuki.last_state["door_sensor_state"].value,
-                "doorsensorStateName": nuki.last_state["door_sensor_state"].name,
-                "ringactionTimestamp": None,  # How to get this from bt api?
-                "ringactionState": None,  # How to get this from bt api?
-                "timestamp": nuki.last_state["current_time"].isoformat().split(".")[0],
-                }
+        state = {"mode": nuki.last_state["nuki_state"].value,
+                 "state": nuki.last_state["lock_state"].value,
+                 "stateName": nuki.last_state["lock_state"].name,
+                 "batteryCritical": nuki.is_battery_critical,
+                 "batteryCharging": nuki.is_battery_charging,
+                 "batteryChargeState": nuki.battery_percentage,
+                 "keypadBatteryCritical": False,  # How to get this from bt api?
+                 "doorsensorState": nuki.last_state["door_sensor_state"].value,
+                 "doorsensorStateName": nuki.last_state["door_sensor_state"].name,
+                 "ringactionTimestamp": None,  # How to get this from bt api?
+                 "ringactionState": None,  # How to get this from bt api?
+                 "timestamp": nuki.last_state["current_time"].isoformat().split(".")[0],
+                 }
+
+        if nuki.device_type == DeviceType.OPENER:
+            state["ringactionTimestamp"] = nuki.last_state["current_time"].isoformat().split(".")[0]
+            state["ringactionState"] = not nuki.last_state["last_lock_action_completion_status"]
+
+        return state
 
     async def _newstate(self, nuki):
         logger.info(f"Nuki new state: {nuki.last_state}")

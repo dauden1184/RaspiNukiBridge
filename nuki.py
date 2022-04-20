@@ -34,7 +34,7 @@ class DeviceType(enum.Enum):
 
 
 class DoorsensorState(enum.Enum):
-    NOT_CONNECTED = 0
+    UNAVAILABLE = 0
     DEACTIVATED = 1
     DOOR_CLOSED = 2
     DOOR_OPENED = 3
@@ -309,7 +309,7 @@ class Nuki:
                              "timezone_offset": values[9],
                              "critical_battery_state": values[10],
                              "current_update_count": values[11],
-                             "lock_n_go_timer": values[12],
+                             "ring_to_open_timer": values[12],
                              "last_lock_action": NukiAction(values[13]),
                              "last_lock_action_trigger": values[14],
                              "last_lock_action_completion_status": values[15],
