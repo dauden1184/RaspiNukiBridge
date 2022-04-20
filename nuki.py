@@ -148,8 +148,8 @@ class NukiManager:
         if self.newstate_callback:
             await self.newstate_callback(nuki)
 
-    def get_client(self, address):
-        return BleakClient(address, adapter=self._adapter)
+    def get_client(self, address, timeout=None):
+        return BleakClient(address, adapter=self._adapter, timeout=timeout)
 
     def __getitem__(self, index):
         return list(self._devices.values())[index]
@@ -518,10 +518,10 @@ class Nuki:
 
     async def connect(self):
         if not self._client:
-            self._client = self.manager.get_client(self.address)
+            self._client = self.manager.get_client(self.address, timeout=self.connection_timeout)
         await self.manager.stop_scanning()
         logger.info("Nuki connecting")
-        await self._client.connect(timeout=self.connection_timeout)
+        await self._client.connect()
         logger.debug(f"Services {[str(s) for s in self._client.services]}")
         logger.debug(f"Characteristics {[str(v) for v in self._client.services.characteristics.values()]}")
         if not self.device_type:
