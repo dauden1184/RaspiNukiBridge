@@ -78,7 +78,7 @@ python .
 
 ## Connection timeout and retries
 
-In case of issues during the bluetooth connection to the nuki device, it is possible to set a higher connection timeout and the number of retries with the fields `connection_timeout` (default is 10 seconds) and `retries` (default is 3) like this:
+In case of issues during the bluetooth connection to the nuki device, it is possible to set a higher connection timeout and the number of retries with the fields `connection_timeout` (default is 10 seconds) and `retry` (default is 3) like this:
 
 ```
 smartlock:
@@ -88,7 +88,7 @@ smartlock:
     nuki_public_key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     auth_id: xxxxxxxx
     connection_timeout: 30
-    retries: 5
+    retry: 5
 ```
 
 ## Start automatically at boot
