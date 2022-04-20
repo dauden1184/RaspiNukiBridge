@@ -10,7 +10,15 @@ https://developer.nuki.io/page/nuki-bridge-http-api-1-13/4/#heading--lockstate
   
 This is heavily inspired by the work of [Jandebeule](https://github.com/jandebeule/nukiPyBridge).
   
-## Installing ad usage
+# Installation
+
+> ### Raspberry Pi 3B+ and 4 only
+> ```
+> wget http://ftp.hk.debian.org/debian/pool/main/b/bluez/bluez_5.50-1.2\~deb10u1_armhf.deb
+> sudo apt install ./bluez_5.50-1.2~deb10u1_armhf.deb
+> ```
+> Reboot the Raspberry Pi
+
 Clone the repository.
 ```
 git clone https://github.com/dauden1184/RaspiNukiBridge.git
@@ -71,11 +79,23 @@ smartlock:
     auth_id: xxxxxxxx
 ```
 
+# Usage
+
+## Test manually
+```
+python .  --lock
+python .  --unlock
+```
+
+## Bridge server for HA
 Save the file and start the bridge:
 ```
 python .
 ```
-
+Install either:
+1. [hass_nuki_ng integration](https://github.com/kvj/hass_nuki_ng)
+2. [Homeassistant Nuki integration](https://www.home-assistant.io/integrations/nuki/)
+# Advanced
 ## Connection timeout and retries
 
 In case of issues during the bluetooth connection to the nuki device, it is possible to set a higher connection timeout and the number of retries with the fields `connection_timeout` (default is 10 seconds) and `retry` (default is 3) like this:
