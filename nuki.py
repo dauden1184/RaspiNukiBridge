@@ -506,6 +506,8 @@ class Nuki:
             try:
                 if not self._client or not self._client.is_connected:
                     await self.connect()
+                if characteristic is None:
+                    characteristic = self._BLE_CHAR
                 logger.debug(f"Sending data to {characteristic}: {data}")
                 await self._client.write_gatt_char(characteristic, data)
             except Exception as exc:
@@ -515,6 +517,15 @@ class Nuki:
                 break
         else:
             await self.disconnect()
+
+    async def _safe_start_notify(self, *args):
+        try:
+            await self._client.start_notify(*args)
+        # This exception might occur due to Bluez downgrade required for Pi 3B+ and Pi 4. See this comment:
+        # https://github.com/dauden1184/RaspiNukiBridge/issues/1#issuecomment-1103969957
+        # Haven't researched further the reason and consequences of this exception
+        except EOFError:
+            logger.info("EOFError during notification")
 
     async def connect(self):
         if not self._client:
@@ -530,8 +541,8 @@ class Nuki:
                 self.device_type = DeviceType.OPENER
             else:
                 self.device_type = DeviceType.SMARTLOCK_1_2
-        await self._client.start_notify(self._BLE_PAIRING_CHAR, self._notification_handler)
-        await self._client.start_notify(self._BLE_CHAR, self._notification_handler)
+        await self._safe_start_notify(self._BLE_PAIRING_CHAR, self._notification_handler)
+        await self._safe_start_notify(self._BLE_CHAR, self._notification_handler)
         logger.info("Connected")
         self._command_timeout_task = asyncio.create_task(self._start_cmd_timeout())
 
