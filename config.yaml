@@ -1,7 +1,7 @@
-name: "RaspiNukiBridge"
-description: "Nuki bridge to HTTP"
-version: "0.0.1"
-slug: "raspi_nuki_bridge"
+name: "Nuki Bridge"
+description: "Nuki Bluetooth to HTTP bridge"
+version: "0.0.17"
+slug: "nuki_bridge"
 arch:
   - aarch64
   - amd64
@@ -11,4 +11,4 @@ arch:
 startup: before
 ports:
   8080/tcp: 8080
-
+host_dbus: true
