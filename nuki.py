@@ -9,6 +9,7 @@ import enum
 import crc16
 import nacl.utils
 import nacl.secret
+from bleak.exc import BleakDBusError
 from nacl.bindings.crypto_box import crypto_box_beforenm
 from bleak import BleakScanner, BleakClient
 
@@ -166,8 +167,12 @@ class NukiManager:
         return list(self._devices.values())
 
     async def start_scanning(self):
-        logger.info("Start scanning")
-        await self._scanner.start()
+        while True:
+            try:
+                logger.info("Start scanning")
+                await self._scanner.start()
+            except BleakDBusError as e:
+                logger.error(e)
 
     async def stop_scanning(self):
         logger.info("Stop scanning")

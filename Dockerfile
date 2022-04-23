@@ -52,4 +52,4 @@ RUN chmod a+x ./__main__.py
 #CMD [ "/run.sh" ]
 CMD ["sleep", "infinity"]
 #ENTRYPOINT ["tail", "-f", "/dev/null"]
-#CMD [ "python", "." ]
+#CMD [ "python3", "." ]
