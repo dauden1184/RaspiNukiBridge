@@ -172,7 +172,7 @@ class NukiManager:
             try:
                 logger.info("Start scanning")
                 await self._scanner.start()
-                logger.info(f"Scanning succeeded on attempt {i}")
+                logger.info(f"Scanning succeeded on attempt {i+1}")
                 break
             except BleakDBusError as e:
                 logger.error(e)
@@ -189,7 +189,10 @@ class NukiManager:
 
     async def _detected_ibeacon(self, device, advertisement_data):
         if device.address in self._devices:
-            manufacturer_data = advertisement_data.manufacturer_data[76]
+            manufacturer_data = advertisement_data.manufacturer_data.get(76, None)
+            if manufacturer_data is None:
+                logger.info(f"No manufacturer_data (76) in advertisement_data: {advertisement_data}")
+                return
             if manufacturer_data[0] != 0x02:
                 # Ignore HomeKit advertisement
                 return
