@@ -5,6 +5,7 @@ import logging
 import struct
 import hmac
 import enum
+import time
 
 import crc16
 import nacl.utils
@@ -167,12 +168,17 @@ class NukiManager:
         return list(self._devices.values())
 
     async def start_scanning(self):
-        while True:
+        for i in range(8):
             try:
                 logger.info("Start scanning")
                 await self._scanner.start()
+                logger.info(f"Scanning succeeded on attempt {i}")
+                break
             except BleakDBusError as e:
                 logger.error(e)
+                sleep_seconds = 2 ** i
+                logger.info(f"Scanning failed. Retrying in {sleep_seconds} seconds")
+                time.sleep(sleep_seconds)
 
     async def stop_scanning(self):
         logger.info("Stop scanning")
