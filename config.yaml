@@ -1,6 +1,6 @@
 name: "Nuki Bridge"
 description: "Nuki Bluetooth to HTTP bridge"
-version: "0.0.20"
+version: "0.0.21"
 slug: "nuki_bridge"
 arch:
   - aarch64
@@ -8,7 +8,7 @@ arch:
   - armhf
   - armv7
   - i386
-startup: before
+startup: services
 ports:
   8080/tcp: 8080
 host_dbus: true
