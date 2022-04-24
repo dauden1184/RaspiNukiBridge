@@ -154,6 +154,7 @@ class WebServer:
             return hash_256 == request.query["hash"]
         elif "token" in request.query:
             return self._token == request.query["token"]
+        logger.error('Invalid token')
         return False
 
     async def nuki_lockaction(self, request):
