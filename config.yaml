@@ -1,6 +1,6 @@
 name: "Nuki Bridge"
 description: "Nuki Bluetooth to HTTP bridge"
-version: "0.0.18"
+version: "0.0.19"
 slug: "nuki_bridge"
 arch:
   - aarch64
