@@ -220,6 +220,7 @@ class Nuki:
         self._challenge_command = None
         self._pairing_callback = None
         self._command_timeout_task = None
+        self._reset_opener_state_task = None
         self.retry = 3
         self.connection_timeout = 10
         self.command_timeout = 30
@@ -405,6 +406,12 @@ class Nuki:
 
         return None, None
 
+    async def reset_opener_state(self):
+        await asyncio.sleep(30)
+        self.last_state["last_lock_action_completion_status"] = 0
+        if self.config and self.last_state:
+            await self.manager.nuki_newstate(self)
+
     def set_ble_device(self, ble_device):
         self._client = BleakClient(ble_device)
         return self._client
@@ -433,6 +440,8 @@ class Nuki:
                     await self.disconnect()
             if self.config and self.last_state:
                 await self.manager.nuki_newstate(self)
+            if self.device_type == DeviceType.OPENER and self.last_state["last_lock_action_completion_status"]:
+                self._reset_opener_state_task = asyncio.create_task(self.reset_opener_state())
 
         elif command == NukiCommand.CONFIG:
             self.config = data
