@@ -67,6 +67,7 @@ class WebServer:
                  "ringactionTimestamp": None,  # How to get this from bt api?
                  "ringactionState": None,  # How to get this from bt api?
                  "timestamp": nuki.last_state["current_time"].isoformat().split(".")[0],
+                 "success": True,
                  }
 
         if nuki.device_type == DeviceType.OPENER:
