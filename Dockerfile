@@ -15,7 +15,6 @@ WORKDIR /usr/src
 COPY run.sh ./
 COPY __main__.py ./
 COPY nuki.py ./
-COPY nuki.yaml ./
 COPY requirements.txt ./
 
 RUN pip3 install -r requirements.txt
