@@ -563,6 +563,8 @@ class Nuki:
     async def _start_cmd_timeout(self):
         await asyncio.sleep(self.command_timeout)
         logger.info("Connection timeout")
+        # Unpaired :(
+        # TODO: pair again
         await self.disconnect()
 
     async def disconnect(self):
