@@ -15,6 +15,10 @@ WORKDIR /usr/src
 COPY run.sh ./
 COPY __main__.py ./
 COPY nuki.py ./
+COPY web_server.py ./
+COPY config.py ./
+COPY scan_ble.py ./
+COPY utils.py ./
 COPY requirements.txt ./
 
 RUN pip3 install -r requirements.txt
