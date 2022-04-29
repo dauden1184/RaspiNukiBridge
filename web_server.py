@@ -128,15 +128,17 @@ class WebServer:
         return web.Response(text=json.dumps(resp))
 
     def _check_token(self, request):
+        token_valid = False
         if "hash" in request.query:
             rnr = request.query["rnr"]
             ts = request.query["ts"]
             hash_256 = hashlib.sha256(f"{ts},{rnr},{self._token}".encode("utf-8")).hexdigest()
-            return hash_256 == request.query["hash"]
+            token_valid = hash_256 == request.query["hash"]
         elif "token" in request.query:
-            return self._token == request.query["token"]
-        logger.error('Invalid token')
-        return False
+            token_valid = self._token == request.query["token"]
+        if not token_valid:
+            logger.error('Invalid token. Please change token.')
+        return token_valid
 
     async def nuki_lockaction(self, request):
         if not self._check_token(request):

@@ -82,6 +82,8 @@ def init_config(config_file):
 def _random_app_id_and_token():
     app_id = random.getrandbits(32)
     token = random.getrandbits(256).to_bytes(32, "little").hex()
+    logger.info(f"app_id: {app_id}")
+    logger.info(f"token: {token}")
     return app_id, token
 
 
