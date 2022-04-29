@@ -120,6 +120,10 @@ class NukiClientType(enum.Enum):
     KEYPAD = 0x03
 
 
+class PairingError(enum.Enum):
+    NOT_PAIRING = 0x10
+
+
 logger = logging.getLogger("raspinukibridge")
 
 
@@ -433,7 +437,11 @@ class Nuki:
             command, data = await self._parse_command(uncrypted)
 
         if command == NukiCommand.ERROR_REPORT:
-            logger.error(f"Error {data}")
+            if data == PairingError.NOT_PAIRING.value:
+                logger.error('Put Nuki in pairing mode by pressing the button 6 seconds. Then try again.')
+                exit(0)
+            else:
+                logger.error(f"Error {data}")
             await self.disconnect()
 
         if command == NukiCommand.KEYTURNER_STATES:
@@ -567,13 +575,14 @@ class Nuki:
         # TODO: pair again
         await self.disconnect()
 
-    async def disconnect(self):
+    async def disconnect(self, and_scan=True):
         logger.info("Nuki disconnecting")
         await self._client.disconnect()
         if self._command_timeout_task:
             self._command_timeout_task.cancel()
             self._command_timeout_task = None
-        await self.manager.start_scanning()
+        if and_scan:
+            await self.manager.start_scanning()
 
     async def update_state(self):
         logger.info("Updating nuki state")

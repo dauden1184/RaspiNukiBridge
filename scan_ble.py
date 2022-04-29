@@ -22,7 +22,7 @@ async def _device_mac_address(regex, logger, only_one):
             if re.match(regex, d.name):
                 results.append(d)
         if results:
-            logger.debug(f'Found {", ".join(results)}')
+            logger.debug(f'Found {", ".join([r.name for r in results])}')
             return results
 
 

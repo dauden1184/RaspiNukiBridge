@@ -1,16 +1,16 @@
 import asyncio
 import os
+import random
 
 import yaml
+from nacl.public import PrivateKey
 
-from __main__ import config_file, _random_app_id_and_token, _generate_bridge_keys
 from nuki import NukiManager, Nuki
 from scan_ble import find_ble_device
 from utils import logger
 
 
-def init_config():
-    config_updated = False
+def init_config(config_file):
     if os.path.isfile(config_file):
         with open(config_file) as f:
             data = yaml.load(f, Loader=yaml.FullLoader)
@@ -29,32 +29,67 @@ def init_config():
     app_id = data["server"]["app_id"]
     bt_adapter = data["server"].get("adapter", "hci0")
     nuki_manager = NukiManager(name, app_id, bt_adapter)
-    if 'smartlock' not in data:
-        bridge_public_key, bridge_private_key = _generate_bridge_keys()
-        data['smartlock'] = {
-            'bridge_public_key': bridge_public_key,
-            'bridge_private_key': bridge_private_key
-        }
-        config_updated = True
-    else:
-        bridge_public_key = data['smartlock']['bridge_public_key']
-        bridge_private_key = data['smartlock']['bridge_private_key']
-    if 'address' not in data['smartlock']:
-        data['smartlock']['address'] = find_ble_device('Nuki_.*', logger)
-        config_updated = True
-    if 'nuki_public_key' not in data['smartlock']:
-        address = data['smartlock']['address']
-        nuki = Nuki(address, None, None, bridge_public_key, bridge_private_key)
 
-        def pairing_completed(paired_nuki):
-            return paired_nuki.nuki_public_key.hex(), paired_nuki.auth_id.hex()
+    if 'smartlock' in data:
+        return nuki_manager, data
 
-        loop = asyncio.get_event_loop()
-        nuki_public_key, auth_id = loop.run_until_complete(nuki.pair(pairing_completed))
-        loop.close()
-        data['smartlock']['nuki_public_key'] = nuki_public_key
-        data['smartlock']['auth_id'] = auth_id
-        config_updated = True
-    if config_updated:
+    # Bridge keys
+    bridge_public_key, bridge_private_key = _generate_bridge_keys()
+    smartlock = {
+        'bridge_public_key': bridge_public_key.hex(),
+        'bridge_private_key': bridge_private_key.hex(),
+        'connection_timeout': 30,
+        'command_timeout': 30,
+        'retry': 5
+    }
+
+    # Device MAC Address
+    nuki_devices = find_ble_device('Nuki_.*', logger)
+    if len(nuki_devices) > 1:
+        for device in nuki_devices:
+            logger.info(device)
+        raise ValueError('Multiple Nuki devices found. Please use --pair [MAC_ADDRESS]')
+    if not nuki_devices:
+        raise ValueError('No Nuki device found')
+    address = nuki_devices[0].address
+
+    smartlock['address'] = address
+
+    # Pair
+    nuki = Nuki(address, None, None, bridge_public_key, bridge_private_key)
+    nuki_manager.add_nuki(nuki)
+
+    loop = asyncio.new_event_loop()
+
+    def pairing_completed(paired_nuki):
+        nuki_public_key = paired_nuki.nuki_public_key.hex()
+        auth_id = paired_nuki.auth_id.hex()
+        logger.info(f"Pairing completed, nuki_public_key: {nuki_public_key}")
+        logger.info(f"Pairing completed, auth_id: {auth_id}")
+        smartlock['nuki_public_key'] = nuki_public_key
+        smartlock['auth_id'] = auth_id
+
+        data['smartlock'] = [smartlock]
         yaml.dump(data, open(config_file, 'w'))
+        loop.stop()
+
+    loop.create_task(nuki.pair(pairing_completed))
+    loop.run_forever()
+
     return nuki_manager, data
+
+
+def _random_app_id_and_token():
+    app_id = random.getrandbits(32)
+    token = random.getrandbits(256).to_bytes(32, "little").hex()
+    return app_id, token
+
+
+def _generate_bridge_keys():
+    logger.info(f"Generating new keys")
+    keypair = PrivateKey.generate()
+    bridge_public_key = keypair.public_key.__bytes__()
+    bridge_private_key = keypair.__bytes__()
+    logger.info(f"bridge_public_key: {bridge_public_key.hex()}")
+    logger.info(f"bridge_private_key: {bridge_private_key.hex()}")
+    return bridge_public_key, bridge_private_key

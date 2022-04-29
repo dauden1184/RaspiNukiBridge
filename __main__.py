@@ -1,14 +1,10 @@
 import asyncio
 import logging
-import random
 import argparse
 
-from nacl.public import PrivateKey
-
-from ble_scanner import find_ble_device
-
-from config import init_config
+from config import init_config, _random_app_id_and_token, _generate_bridge_keys
 from nuki import Nuki
+from scan_ble import find_ble_device
 from utils import logger, handler
 from web_server import WebServer
 
@@ -30,22 +26,6 @@ def _add_devices_to_manager(data, nuki_manager):
         n.connection_timeout = ls.get("connection_timeout", 10)
         n.command_timeout = ls.get("command_timeout", 30)
         nuki_manager.add_nuki(n)
-
-
-def _random_app_id_and_token():
-    app_id = random.getrandbits(32)
-    token = random.getrandbits(256).to_bytes(32, "little").hex()
-    return app_id, token
-
-
-def _generate_bridge_keys():
-    logger.info(f"Generating keys for Nuki {address}")
-    keypair = PrivateKey.generate()
-    bridge_public_key = keypair.public_key.__bytes__()
-    bridge_private_key = keypair.__bytes__()
-    logger.info(f"bridge_public_key: {bridge_public_key.hex()}")
-    logger.info(f"bridge_private_key: {bridge_private_key.hex()}")
-    return bridge_public_key, bridge_private_key
 
 
 if __name__ == "__main__":
@@ -82,7 +62,7 @@ if __name__ == "__main__":
         exit(0)
 
     config_file = args.config or "nuki.yaml"
-    nuki_manager, data = init_config()
+    nuki_manager, data = init_config(config_file)
 
     if args.pair:
         if args.pair:
@@ -103,7 +83,8 @@ if __name__ == "__main__":
         loop.create_task(nuki.pair(pairing_completed))
         loop.run_forever()
     else:
-        _add_devices_to_manager(data, nuki_manager)
+        if not nuki_manager.device_list:
+            _add_devices_to_manager(data, nuki_manager)
 
         if args.unlock:
             device = nuki_manager.device_list[0]
