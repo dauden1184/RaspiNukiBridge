@@ -23,9 +23,13 @@ RUN \
         python3=3.9.7-r4 \
         libffi-dev=3.4.2-r1 \
 #        bluez=5.64-r0 \
-        bluez=5.50-1.2 \
+#        bluez=5.50-1.2 \
     \
     && pip install --no-cache-dir -r /opt/requirements.txt
+
+RUN wget http://dl-cdn.alpinelinux.org/alpine/v3.13/main/aarch64/bluez-5.55-r1.apk
+RUN apk add bluez-5.55-r1.apk
+
 
 CMD [ "python3", "." ]
 
