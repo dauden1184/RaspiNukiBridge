@@ -186,10 +186,6 @@ class NukiManager:
                 time.sleep(sleep_seconds)
 
     async def stop_scanning(self):
-        if self._scanner.watcher is not None:
-            logger.info("Not scanning")
-            return
-
         logger.info("Stop scanning")
         try:
             await self._scanner.stop()
