@@ -107,6 +107,7 @@ class WebServer:
                  "deviceType": nuki.device_type.value,  # How to get this from bt api?
                  "name": nuki.config["name"],
                  "lastKnownState": self._get_nuki_last_state(nuki)} for nuki in self.nuki_manager if nuki.config]
+        logger.info(f'Listed {len(resp)} devices')
         return web.Response(text=json.dumps(resp))
 
     async def nuki_info(self, request):

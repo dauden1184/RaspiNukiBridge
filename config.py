@@ -5,9 +5,16 @@ import random
 import yaml
 from nacl.public import PrivateKey
 
+from consts import CONF_FILE_NAME, DATA_PATH
 from nuki import NukiManager, Nuki
 from scan_ble import find_ble_device
 from utils import logger
+
+
+def get_config_file():
+    if os.path.isdir(DATA_PATH):
+        return os.path.join(DATA_PATH, CONF_FILE_NAME)
+    return CONF_FILE_NAME
 
 
 def init_config(config_file):
@@ -31,6 +38,12 @@ def init_config(config_file):
     nuki_manager = NukiManager(name, app_id, bt_adapter)
 
     if 'smartlock' in data:
+        logger.info(f"********************************************************************")
+        logger.info(f"*                                                                  *")
+        logger.info(f"*                            Access Token                          *")
+        logger.info(f"* {data['server']['token']} *")
+        logger.info(f"*                                                                  *")
+        logger.info(f"********************************************************************")
         return nuki_manager, data
 
     # Bridge keys
@@ -64,8 +77,15 @@ def init_config(config_file):
     def pairing_completed(paired_nuki):
         nuki_public_key = paired_nuki.nuki_public_key.hex()
         auth_id = paired_nuki.auth_id.hex()
-        logger.info(f"Pairing completed, nuki_public_key: {nuki_public_key}")
         logger.info(f"Pairing completed, auth_id: {auth_id}")
+        logger.info(f"nuki_public_key: {nuki_public_key}")
+        logger.info(f"********************************************************************")
+        logger.info(f"*                                                                  *")
+        logger.info(f"*                         Pairing completed!                       *")
+        logger.info(f"*                            Access Token                          *")
+        logger.info(f"* {token} *")
+        logger.info(f"*                                                                  *")
+        logger.info(f"********************************************************************")
         smartlock['nuki_public_key'] = nuki_public_key
         smartlock['auth_id'] = auth_id
 
@@ -82,8 +102,8 @@ def init_config(config_file):
 def _random_app_id_and_token():
     app_id = random.getrandbits(32)
     token = random.getrandbits(256).to_bytes(32, "little").hex()
-    logger.info(f"app_id: {app_id}")
-    logger.info(f"token: {token}")
+    logger.info(f'Access Token: {token}')
+    logger.info(f'app_id: {app_id}')
     return app_id, token
 
 

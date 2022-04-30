@@ -1,33 +1,33 @@
-# TODO Make an image with the correct Bluez version
-FROM bitnami/minideb:buster
+ARG BUILD_FROM=ghcr.io/hassio-addons/base-python/amd64:8.1.1
+# hadolint ignore=DL3006
+FROM ${BUILD_FROM}
 
-RUN apt update --yes --force-yes
-RUN apt upgrade --yes --force-yes
-RUN apt install --yes --force-yes \
-    bluez \
-    python3 \
-    python3-pip \
-    libffi-dev
+# Copy requirements.txt
+COPY requirements.txt *.py /opt/
 
-WORKDIR /usr/src
+# Set workdir
+WORKDIR /opt
 
-# Copy files for add-on
-COPY run.sh ./
-COPY __main__.py ./
-COPY nuki.py ./
-COPY web_server.py ./
-COPY config.py ./
-COPY scan_ble.py ./
-COPY utils.py ./
-COPY requirements.txt ./
+# Set shell
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-RUN pip3 install -r requirements.txt
+# Install requirements for add-on
+RUN \
+    apk add --no-cache --virtual .build-dependencies \
+        libc-dev=0.7.2-r3 \
+        py3-pip=20.3.4-r1 \
+        python3-dev=3.9.7-r4 \
+    \
+    && apk add --no-cache \
+        build-base \
+        python3=3.9.7-r4 \
+        libffi-dev=3.4.2-r1 \
+        bluez=5.64-r0 \
+        #bluez=5.50-1.2 \
+    \
+    && pip install --no-cache-dir -r /opt/requirements.txt
 
-# chmod
-RUN chmod a+x ./run.sh
-RUN chmod a+x ./__main__.py
-
-#CMD [ "/run.sh" ]
-# Useful for debugging
-#CMD ["sleep", "infinity"]
 CMD [ "python3", "." ]
+
+# For debugging
+#CMD ["sleep", "infinity"]

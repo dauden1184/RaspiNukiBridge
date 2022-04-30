@@ -172,13 +172,14 @@ class NukiManager:
         return list(self._devices.values())
 
     async def start_scanning(self):
-        for i in range(8):
+        for i in range(1):
             try:
                 logger.info("Start scanning")
                 await self._scanner.start()
                 logger.info(f"Scanning succeeded on attempt {i+1}")
                 break
             except BleakDBusError as e:
+                logger.info('Error while stop scanning')
                 logger.error(e)
                 sleep_seconds = 2 ** i
                 logger.info(f"Scanning failed. Retrying in {sleep_seconds} seconds")
@@ -188,8 +189,9 @@ class NukiManager:
         logger.info("Stop scanning")
         try:
             await self._scanner.stop()
-        except:
-            pass
+        except BleakDBusError as e:
+            logger.info('Error while stop scanning')
+            logger.error(e)
 
     async def _detected_ibeacon(self, device, advertisement_data):
         if device.address in self._devices:
@@ -208,7 +210,9 @@ class NukiManager:
             if not nuki.device_type:
                 try:
                     await nuki.connect()  # this will force the identification of the device type
-                except:
+                except Exception as e:
+                    logger.info('Error while detecting non-nuki')
+                    logger.exception(e)
                     await self.start_scanning()
                     return
             if not nuki.last_state or tx_p & 0x1:
@@ -533,7 +537,8 @@ class Nuki:
                 logger.debug(f"Sending data to {characteristic}: {data}")
                 await self._client.write_gatt_char(characteristic, data)
             except Exception as exc:
-                logger.exception(f"Error: {type(exc)} {exc}")
+                logger.info('Error while sending data')
+                logger.exception(exc)
                 await asyncio.sleep(1)
             else:
                 break
