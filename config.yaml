@@ -1,6 +1,6 @@
 name: "Nuki Bridge"
 description: "Virtual Nuki Bridge"
-version: "0.0.2"
+version: "0.0.3"
 slug: "nuki_bridge"
 arch:
   - aarch64
