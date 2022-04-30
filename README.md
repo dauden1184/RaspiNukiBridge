@@ -2,8 +2,13 @@ Home Assistant Virtual Nuki Bridge
 =
 Use this instead of [Nuki Bridge](https://nuki.io/en/bridge/).
 
-* Forked from [dauden1184](https://github.com/dauden1184/) 's [RaspiNukiBridge](https://github.com/dauden1184/RaspiNukiBridge).
-* Find similar project [here](https://github.com/ftarolli/NukiBridgeAddon).
+## Background
+* This is heavily inspired by the work of [Jandebeule](https://github.com/jandebeule/nukiPyBridge).
+* Forked from [dauden1184](https://github.com/dauden1184/) 's [RaspiNukiBridge](https://github.com/dauden1184/RaspiNukiBridge)
+* Similar project [here](https://github.com/ftarolli/NukiBridgeAddon)
+* Nuki documentation
+  * [Nuki Smart Lock API V2.2.1](https://developer.nuki.io/page/nuki-smart-lock-api-2/2/#heading--lock-action)
+  * [Nuki Bridge HTTP API V1.13.1](https://developer.nuki.io/page/nuki-bridge-http-api-1-13/4/#heading--lockstate)
 
 # Installation
 There are 2  methods:
