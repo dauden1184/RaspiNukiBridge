@@ -1,12 +1,43 @@
 Home Assistant Virtual Nuki Bridge
 =
-Run this on your Home Assistant instead of using [Nuki Bridge](https://nuki.io/en/bridge/).
-> **WARNING** Work-in-progress. Unstable.
+Use this instead of [Nuki Bridge](https://nuki.io/en/bridge/).
 
-This project is a work-in-progress of running [dauden1184](https://github.com/dauden1184/) 's [RaspiNukiBridge](https://github.com/dauden1184/RaspiNukiBridge) as a Home Assistant Addon.
+* Forked from [dauden1184](https://github.com/dauden1184/) 's [RaspiNukiBridge](https://github.com/dauden1184/RaspiNukiBridge).
+* Find similar project [here](https://github.com/ftarolli/NukiBridgeAddon).
 
-There's a similar effort [here](https://github.com/ftarolli/NukiBridgeAddon).
 # Installation
+There are 2  methods:
+1. [Outside of Home Assistant](#installation-outside-of-home-assistant-os)
+   1. On any Raspberry Pi
+   2. If your Home Assistant is too far from the Nuki Smart Lock
+2. [As a Home Assistant Addon](installation-as-home-assistant-os)
+
+   > **WARNING** work-in-progress. Very unstable.
+
+# Installation outside of Home Assistant OS
+
+> ### Raspberry Pi 3B+ and 4 only
+> DOWNGRADE Bluez. [See comment](https://github.com/dauden1184/RaspiNukiBridge/issues/1#issuecomment-1103969957).
+> ```
+> wget http://ftp.hk.debian.org/debian/pool/main/b/bluez/bluez_5.50-1.2~deb10u2_armhf.deb
+> sudo apt install ./bluez_5.50-1.2~deb10u2_armhf.deb
+> ```
+> Reboot the Raspberry Pi
+
+1. Clone the repository.
+
+   ```
+   git clone https://github.com/dauden1184/RaspiNukiBridge.git
+   ```
+
+2. Install the requirements.
+
+   ```
+   pip install -r requirements.txt
+   ```
+3. Go to [pairing](#pairing)
+
+# Installation as Home Assistant OS
 ## Install addon
 ### Install SSH
 1. Enable advanced mode in your user profile
@@ -32,9 +63,13 @@ There's a similar effort [here](https://github.com/ftarolli/NukiBridgeAddon).
 5. Install the addon. It takes a few minutes.
 6. *Don't start it yet!*
 
-## Pair with lock
+# Pairing
 1. Press the button of the Nuki Smart Lock for 6 seconds. It should light up.
-2. Start the addon by clicking "start"
+2. Run
+   1. If installed as addon, click `start`
+   2. If installed outside HA, run
+   
+      ```python .```
 3. Look in logs for:
 
    ```
@@ -46,16 +81,16 @@ There's a similar effort [here](https://github.com/ftarolli/NukiBridgeAddon).
    *                                                                  *
    ********************************************************************
    ```
-4. Copy the access token for a following step.
+4. Copy the `Access Token` for a following step.
 
    In case you missed it, restart the service and check again.
+5. Before moving on, restart the addon (first run is less stable)
 
-## Nuki Addon
-1. Restart the addon (first run is less stable)
-2. Install either
+# Nuki Addon
+1. Install either
    1. [Official Home Assistant Nuki integration](https://www.home-assistant.io/integrations/nuki/)
    2. [hass_nuki_ng](https://github.com/kvj/hass_nuki_ng)
-3. Configure the Nuki Addon:
+2. Configure the Nuki Addon:
    1. Paste your token from the log above
    2. Address is `127.0.0.1`
 
