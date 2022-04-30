@@ -192,6 +192,9 @@ class NukiManager:
         except BleakDBusError as e:
             logger.info('Error while stop scanning')
             logger.error(e)
+        except AttributeError as e:
+            logger.info('Error while stop scanning. Scan was probably not started.')
+            logger.error(e)
 
     async def _detected_ibeacon(self, device, advertisement_data):
         if device.address in self._devices:
