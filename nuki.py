@@ -485,7 +485,7 @@ class Nuki:
             await self._send_data(self._BLE_PAIRING_CHAR, cmd)
 
         elif command == NukiCommand.STATUS:
-            logger.error(f"Last action: {data}")
+            logger.info(f"Last action: {data}")
             if self._challenge_command == NukiCommand.AUTH_ID_CONFIRM:
                 if self._pairing_callback:
                     self._pairing_callback(self)
