@@ -20,7 +20,7 @@ There are 2  methods:
    > **WARNING** work-in-progress. Very unstable.
 
 # Installation outside of Home Assistant OS
-
+## Get the files
 > ### Raspberry Pi 3B+ and 4 only
 > DOWNGRADE Bluez. [See comment](https://github.com/dauden1184/RaspiNukiBridge/issues/1#issuecomment-1103969957).
 > ```
@@ -42,7 +42,40 @@ There are 2  methods:
    ```
 3. Go to [pairing](#pairing)
 
-# Installation as Home Assistant OS
+## Start automatically at boot
+
+Create a new systemd service:
+
+```
+sudo nano /etc/systemd/system/nukibridge.service
+```
+
+Put this content in the file (change 'user' and 'WorkingDirectory' to your needs):
+
+```
+[Unit]
+Description=Nuki bridge
+After=network-online.target
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=pi
+WorkingDirectory=/home/pi/RaspiNukiBridge/
+ExecStart=python .
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable the service and start it:
+
+```
+sudo systemctl daemon-reload
+sudo systemctl enable nukibridge.service
+sudo systemctl start nukibridge.service
+```
+
+# Installation as Home Assistant Addon
 ## Install addon
 ### Install SSH
 1. Enable advanced mode in your user profile
