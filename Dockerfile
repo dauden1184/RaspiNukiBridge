@@ -27,8 +27,8 @@ RUN \
     \
     && pip install --no-cache-dir -r /opt/requirements.txt
 
-RUN wget http://dl-cdn.alpinelinux.org/alpine/v3.13/main/aarch64/bluez-5.55-r1.apk
-RUN apk add bluez-5.55-r1.apk
+RUN wget https://dl-cdn.alpinelinux.org/alpine/v3.10/main/aarch64/bluez-5.50-r5.apk
+RUN apk add bluez-5.50-r5.apk
 
 
 CMD [ "python3", "." ]

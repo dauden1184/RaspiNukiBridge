@@ -186,6 +186,10 @@ class NukiManager:
                 time.sleep(sleep_seconds)
 
     async def stop_scanning(self):
+        if self._scanner.is_scanning() or self._scanner.watcher is not None:
+            logger.info("Not scanning")
+            return
+
         logger.info("Stop scanning")
         try:
             await self._scanner.stop()
@@ -575,9 +579,9 @@ class Nuki:
 
     async def _start_cmd_timeout(self):
         await asyncio.sleep(self.command_timeout)
-        logger.info("Connection timeout")
-        # Unpaired :(
-        # TODO: pair again
+        logger.info("Connection timeout. Try pairing again.")
+        # TODO: Clear lock from nuki.yaml
+        # TODO: Ask user to pair again
         await self.disconnect()
 
     async def disconnect(self, and_scan=True):
