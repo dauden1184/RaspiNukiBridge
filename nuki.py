@@ -172,7 +172,8 @@ class NukiManager:
         return list(self._devices.values())
 
     async def start_scanning(self):
-        for i in range(1):
+        ATTEMPTS = 1
+        for i in range(ATTEMPTS):
             try:
                 logger.info("Start scanning")
                 await self._scanner.start()
@@ -180,6 +181,8 @@ class NukiManager:
                 break
             except BleakDBusError as e:
                 logger.info('Error while stop scanning')
+                if i >= ATTEMPTS - 1:
+                    raise e
                 logger.error(e)
                 sleep_seconds = 2 ** i
                 logger.info(f"Scanning failed. Retrying in {sleep_seconds} seconds")
@@ -593,7 +596,7 @@ class Nuki:
             await self.manager.start_scanning()
 
     async def update_state(self):
-        logger.info("Updating nuki state")
+        logger.info("Querying Nuki state")
         self._challenge_command = NukiCommand.KEYTURNER_STATES
         payload = NukiCommand.KEYTURNER_STATES.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
