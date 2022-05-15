@@ -180,7 +180,7 @@ class NukiManager:
                 logger.info(f"Scanning succeeded on attempt {i+1}")
                 break
             except BleakDBusError as e:
-                logger.info('Error while stop scanning')
+                logger.info('Error while start scanning')
                 if i >= ATTEMPTS - 1:
                     raise e
                 logger.error(e)
@@ -587,8 +587,9 @@ class Nuki:
         await self.disconnect()
 
     async def disconnect(self, and_scan=True):
-        logger.info("Nuki disconnecting")
+        logger.info("Nuki disconnecting...")
         await self._client.disconnect()
+        logger.info("Nuki disconnected")
         if self._command_timeout_task:
             self._command_timeout_task.cancel()
             self._command_timeout_task = None
