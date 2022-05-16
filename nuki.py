@@ -172,20 +172,21 @@ class NukiManager:
         return list(self._devices.values())
 
     async def start_scanning(self):
-        ATTEMPTS = 1
-        for i in range(ATTEMPTS):
+        ATTEMPTS = 8
+        logger.info(f"Starting a scan")
+        for i in range(1, ATTEMPTS + 1):
             try:
-                logger.info("Start scanning")
+                logger.info(f"Scanning attempt {i}")
                 await self._scanner.start()
-                logger.info(f"Scanning succeeded on attempt {i+1}")
+                logger.info(f"Scanning succeeded on attempt {i}")
                 break
             except BleakDBusError as e:
-                logger.info('Error while start scanning')
+                logger.info(f'Error while start scanning attempt {i}')
                 if i >= ATTEMPTS - 1:
                     raise e
-                logger.error(e)
+                logger.exception(e)
                 sleep_seconds = 2 ** i
-                logger.info(f"Scanning failed. Retrying in {sleep_seconds} seconds")
+                logger.info(f"Scanning failed on attempt {i}. Retrying in {sleep_seconds} seconds")
                 time.sleep(sleep_seconds)
 
     async def stop_scanning(self):
@@ -194,10 +195,10 @@ class NukiManager:
             await self._scanner.stop()
         except BleakDBusError as e:
             logger.info('Error while stop scanning')
-            logger.error(e)
+            logger.exception(e)
         except AttributeError as e:
             logger.info('Error while stop scanning. Scan was probably not started.')
-            logger.error(e)
+            logger.exception(e)
 
     async def _detected_ibeacon(self, device, advertisement_data):
         if device.address in self._devices:
@@ -211,6 +212,9 @@ class NukiManager:
             logger.info(f"Nuki: {device.address}, RSSI: {device.rssi} {advertisement_data}")
             tx_p = manufacturer_data[-1]
             nuki = self._devices[device.address]
+            if nuki.just_got_beacon:
+                logger.info(f'Ignoring duplicate beacon from Nuki {device.address}')
+                return
             nuki.set_ble_device(device)
             nuki.rssi = device.rssi
             if not nuki.device_type:
@@ -257,6 +261,15 @@ class Nuki:
 
         if nuki_public_key and bridge_private_key:
             self._create_shared_key()
+
+        self._last_ibeacon = None
+
+    @property
+    def just_got_beacon(self):
+        if self._last_ibeacon is None:
+            self._last_ibeacon = time.time()
+            return False
+        return time.time() - self._last_ibeacon >= 1
 
     @property
     def device_type(self):
@@ -534,19 +547,21 @@ class Nuki:
 
     async def _send_data(self, characteristic, data):
         # Sometimes the connection to the smartlock fails, retry 3 times
-        for _ in range(self.retry):
+        for i in range(1, self.retry + 1):
+            logger.info(f'Trying to send data. Attempt {i}')
             try:
                 if not self._client or not self._client.is_connected:
                     await self.connect()
                 if characteristic is None:
                     characteristic = self._BLE_CHAR
-                logger.debug(f"Sending data to {characteristic}: {data}")
+                logger.info(f'Sending data to {characteristic}: {data}')
                 await self._client.write_gatt_char(characteristic, data)
             except Exception as exc:
-                logger.info('Error while sending data')
+                logger.info(f'Error while sending data on attempt {i}')
                 logger.exception(exc)
                 await asyncio.sleep(1)
             else:
+                logger.info(f'Data sent on attempt {i}')
                 break
         else:
             await self.disconnect()
@@ -587,7 +602,7 @@ class Nuki:
         await self.disconnect()
 
     async def disconnect(self, and_scan=True):
-        logger.info("Nuki disconnecting...")
+        logger.info(f"Nuki disconnecting... and_scan={and_scan}")
         await self._client.disconnect()
         logger.info("Nuki disconnected")
         if self._command_timeout_task:
