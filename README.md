@@ -120,7 +120,7 @@ sudo systemctl start nukibridge.service
 4. Copy the `Access Token` for a following step.
 
    In case you missed it, restart the service and check again.
-5. Before moving on, restart the addon (first run is less stable)
+5. Before moving on, you might need to restart the addon. First run is less stable.
 
 # Nuki Addon
 1. Install either
