@@ -630,6 +630,7 @@ class Nuki:
         payload = NukiCommand.CHALLENGE.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
         await self._send_data(self._BLE_CHAR, cmd)
+        self.last_state['lock_state'] = LockState.LOCKING
 
     async def unlock(self):
         logger.info("Unlocking")
@@ -637,12 +638,14 @@ class Nuki:
         payload = NukiCommand.CHALLENGE.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
         await self._send_data(self._BLE_CHAR, cmd)
+        self.last_state['lock_state'] = LockState.UNLOCKING
 
     async def unlatch(self):
         self._challenge_command = NukiAction.UNLATCH
         payload = NukiCommand.CHALLENGE.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
         await self._send_data(self._BLE_CHAR, cmd)
+        self.last_state['lock_state'] = LockState.UNLATCHING
 
     async def lock_action(self, action):
         logger.info(f"Lock action {action}")
