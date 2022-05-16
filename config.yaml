@@ -2,6 +2,7 @@ name: "Nuki Bridge"
 description: "Virtual Nuki Bridge"
 version: "0.0.1"
 slug: "nuki_bridge"
+url: "https://github.com/f1ren/RaspiNukiBridge"
 arch:
   - aarch64
   - amd64

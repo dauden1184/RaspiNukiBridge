@@ -22,7 +22,7 @@ RUN \
         build-base \
         python3=3.9.7-r4 \
         libffi-dev=3.4.2-r1 \
-        bluez
+        bluez \
     \
     && pip install --no-cache-dir -r /opt/requirements.txt
 

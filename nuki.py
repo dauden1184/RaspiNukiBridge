@@ -461,7 +461,13 @@ class Nuki:
 
         if command == NukiCommand.ERROR_REPORT:
             if data == PairingError.NOT_PAIRING.value:
-                logger.error('Put Nuki in pairing mode by pressing the button 6 seconds. Then try again.')
+                logger.error(f"********************************************************************")
+                logger.error(f"*                                                                  *")
+                logger.error(f"*                            UNPAIRED!                             *")
+                logger.error(f"*    Put Nuki in pairing mode by pressing the button 6 seconds     *")
+                logger.error(f"*                         Then try again                           *")
+                logger.error(f"*                                                                  *")
+                logger.error(f"********************************************************************")
                 exit(0)
             else:
                 logger.error(f"Error {data}")
