@@ -1,6 +1,6 @@
 Home Assistant Virtual Nuki Bridge
 =
-Use this instead of [Nuki Bridge](https://nuki.io/en/bridge/).
+Use this instead of the [Nuki Bridge](https://nuki.io/en/bridge/) device.
 
 ## Background
 * This is heavily inspired by the work of [Jandebeule](https://github.com/jandebeule/nukiPyBridge).
@@ -11,13 +11,11 @@ Use this instead of [Nuki Bridge](https://nuki.io/en/bridge/).
   * [Nuki Bridge HTTP API V1.13.1](https://developer.nuki.io/page/nuki-bridge-http-api-1-13/4/#heading--lockstate)
 
 # Installation
-There are 2  methods:
-1. [Outside of Home Assistant](#installation-outside-of-home-assistant-os)
-   1. On any Raspberry Pi
-   2. If your Home Assistant is too far from the Nuki Smart Lock
-2. [As a Home Assistant Addon](installation-as-home-assistant-os)
-
-   > **WARNING** work-in-progress. Very unstable.
+There are 2 methods:
+1. [As a Home Assistant Addon](#installation-as-home-assistant-os)
+   1. Use this if your Home Assistant is nearby the Nuki Smart Lock
+2. [Outside of Home Assistant](#installation-outside-of-home-assistant-os)
+   1. Use this if your Home Assistant too far from the Nuki Smart Lock
 
 # Installation outside of Home Assistant OS
 ## Get the files
