@@ -269,7 +269,10 @@ class Nuki:
         if self._last_ibeacon is None:
             self._last_ibeacon = time.time()
             return False
-        return time.time() - self._last_ibeacon >= 1
+        seen_recently = time.time() - self._last_ibeacon <= 1
+        if not seen_recently:
+            self._last_ibeacon = time.time()
+        return seen_recently
 
     @property
     def device_type(self):
