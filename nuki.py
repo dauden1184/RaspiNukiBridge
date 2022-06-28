@@ -5,10 +5,13 @@ import logging
 import struct
 import hmac
 import enum
+import time
+from asyncio import CancelledError, TimeoutError
 
 import crc16
 import nacl.utils
 import nacl.secret
+from bleak.exc import BleakDBusError
 from nacl.bindings.crypto_box import crypto_box_beforenm
 from bleak import BleakScanner, BleakClient
 
@@ -118,6 +121,10 @@ class NukiClientType(enum.Enum):
     KEYPAD = 0x03
 
 
+class PairingError(enum.Enum):
+    NOT_PAIRING = 0x10
+
+
 logger = logging.getLogger("raspinukibridge")
 
 
@@ -133,6 +140,7 @@ class NukiManager:
         self._devices = {}
         self._scanner = BleakScanner(adapter=self._adapter)
         self._scanner.register_detection_callback(self._detected_ibeacon)
+        self.taskQueue = TaskQueue(self)
 
     @property
     def newstate_callback(self):
@@ -148,8 +156,8 @@ class NukiManager:
         if self.newstate_callback:
             await self.newstate_callback(nuki)
 
-    def get_client(self, address, timeout=None):
-        return BleakClient(address, adapter=self._adapter, timeout=timeout)
+    def get_client(self, address_or_device, timeout=None):
+        return BleakClient(address_or_device, adapter=self._adapter, timeout=timeout)
 
     def __getitem__(self, index):
         return list(self._devices.values())[index]
@@ -165,38 +173,149 @@ class NukiManager:
     def device_list(self):
         return list(self._devices.values())
 
-    async def start_scanning(self):
-        logger.info("Start scanning")
-        await self._scanner.start()
+    def start(self):
+        self.taskQueue.start()
 
-    async def stop_scanning(self):
+    async def start_scanning(self):
+        ATTEMPTS = 8
+        logger.info(f"Starting a scan")
+        for i in range(1, ATTEMPTS + 1):
+            try:
+                logger.info(f"Scanning attempt {i}")
+                await self._scanner.start()
+                logger.info(f"Scanning succeeded on attempt {i}")
+                break
+            except BleakDBusError as e:
+                logger.info(f'Error while start scanning attempt {i}')
+                if i >= ATTEMPTS - 1:
+                    raise e
+                logger.exception(e)
+                sleep_seconds = 2 ** i
+                logger.info(f"Scanning failed on attempt {i}. Retrying in {sleep_seconds} seconds")
+                time.sleep(sleep_seconds)
+
+    async def stop_scanning(self, timeout=10.0):
         logger.info("Stop scanning")
         try:
-            await self._scanner.stop()
-        except:
-            pass
+            await asyncio.wait_for(self._scanner.stop(), timeout=timeout)
+            logger.info("Scanning stopped")
+        except (TimeoutError, CancelledError) as e:
+            logger.info(f'Timeout while stop scanning')
+            logger.exception(e)
+        except BleakDBusError as e:
+            logger.info('Error while stop scanning')
+            logger.exception(e)
+        except AttributeError as e:
+            logger.info('Error while stop scanning. Scan was probably not started.')
+            logger.exception(e)
 
     async def _detected_ibeacon(self, device, advertisement_data):
         if device.address in self._devices:
-            manufacturer_data = advertisement_data.manufacturer_data[76]
+            manufacturer_data = advertisement_data.manufacturer_data.get(76, None)
+            if manufacturer_data is None:
+                logger.info(f"No manufacturer_data (76) in advertisement_data: {advertisement_data}")
+                return
             if manufacturer_data[0] != 0x02:
                 # Ignore HomeKit advertisement
                 return
-            logger.info(f"Nuki: {device.address}, RSSI: {device.rssi} {advertisement_data}")
+            logger.info(f"Nuki: {device.address}, adapter: {self._adapter}, RSSI: {device.rssi} {advertisement_data}")
             tx_p = manufacturer_data[-1]
             nuki = self._devices[device.address]
+            if nuki.just_got_beacon:
+                logger.info(f'Ignoring duplicate beacon from Nuki {device.address}')
+                return
             nuki.set_ble_device(device)
             nuki.rssi = device.rssi
             if not nuki.device_type:
-                try:
-                    await nuki.connect()  # this will force the identification of the device type
-                except:
-                    await self.start_scanning()
-                    return
+                async def conn():
+                    try:
+                        await nuki.connect()  # this will force the identification of the device type
+                    except Exception as e:
+                        logger.info('Error while detecting non-nuki')
+                        logger.exception(e)
+                await self.taskQueue.add_task(conn)
             if not nuki.last_state or tx_p & 0x1:
                 await nuki.update_state()
             elif not nuki.config:
                 await nuki.get_config()
+
+
+class TaskQueue:
+    def __init__(self, manager):
+        self._manager = manager
+        self._queue = None
+        self._scanning = False
+
+    async def _worker(self):
+        initial_run = True
+        while True:
+            try:
+                if initial_run:
+                    initial_run = False
+                    try:
+                        await self._manager.start_scanning()
+                        self._scanning = True
+                    except:
+                        continue
+                    logger.info(f'Waiting for first task')
+                    task = await self._queue.get()
+                else:
+                    if self._queue.empty():
+                        logger.info(f'Waiting for more tasks with timeout')
+                        try:
+                            task = await asyncio.wait_for(self._queue.get(), timeout=10)
+                        except (TimeoutError, CancelledError):
+                            logger.info(f'No more tasks - cleaning up')
+                            for device in self._manager.device_list:
+                                try:
+                                    await device.disconnect()
+                                except:
+                                    pass
+                            if not self._scanning:
+                                try:
+                                    await self._manager.start_scanning()
+                                    self._scanning = True
+                                except:
+                                    pass
+                            logger.info(f'Waiting for next task')
+                            task = await self._queue.get()
+                    else:
+                        logger.info(f'Waiting for next task')
+                        task = await self._queue.get()
+                if self._scanning:
+                    try:
+                        await self._manager.stop_scanning()
+                        self._scanning = False
+                    except:
+                        pass
+                logger.info(f'Working on task')
+                await task()
+                logger.info(f'Finished task')
+                self._queue.task_done()
+            except Exception as e:
+                logger.error(f'Error while handling tasks')
+                logger.exception(e)
+                continue
+
+    def start(self):
+        if self._queue:
+            return
+        self._queue = asyncio.Queue()
+        loop = asyncio.get_event_loop()
+        loop.create_task(self._worker())
+
+    async def add_task(self, task):
+        loop = asyncio.get_running_loop()
+        fut = loop.create_future()
+
+        async def wrapper_task():
+            try:
+                result = await task()
+                fut.set_result(result)
+            except Exception as e:
+                fut.set_exception(e)
+        await self._queue.put(wrapper_task)
+        return await fut
 
 
 class Nuki:
@@ -231,10 +350,22 @@ class Nuki:
         if nuki_public_key and bridge_private_key:
             self._create_shared_key()
 
+        self._last_ibeacon = None
+
+    @property
+    def just_got_beacon(self):
+        if self._last_ibeacon is None:
+            self._last_ibeacon = time.time()
+            return False
+        seen_recently = time.time() - self._last_ibeacon <= 1
+        if not seen_recently:
+            self._last_ibeacon = time.time()
+        return seen_recently
+
     @property
     def device_type(self):
         return self._device_type
-    
+
     @device_type.setter
     def device_type(self, device_type: DeviceType):
         if device_type == DeviceType.OPENER:
@@ -289,7 +420,6 @@ class Nuki:
     async def _parse_command(self, data):
         command, = struct.unpack("<H", data[:2])
         command = NukiCommand(command)
-        #crc = data[-2:]
         data = data[2:-2]
         logger.debug(f"Parsing command: {command}, data: {data}")
 
@@ -413,12 +543,13 @@ class Nuki:
             await self.manager.nuki_newstate(self)
 
     def set_ble_device(self, ble_device):
-        self._client = BleakClient(ble_device)
+        self._client = self.manager.get_client(ble_device, timeout=self.connection_timeout)
         return self._client
 
     async def _notification_handler(self, sender, data):
         logger.debug(f"Notification handler: {sender}, data: {data}")
-        if sender == self._client.services[self._BLE_PAIRING_CHAR].handle:
+        if self._client.services[self._BLE_PAIRING_CHAR] and \
+                sender == self._client.services[self._BLE_PAIRING_CHAR].handle:
             # The pairing handler is not encrypted
             command, data = await self._parse_command(bytes(data))
         else:
@@ -426,8 +557,17 @@ class Nuki:
             command, data = await self._parse_command(uncrypted)
 
         if command == NukiCommand.ERROR_REPORT:
-            logger.error(f"Error {data}")
-            await self.disconnect()
+            if data == PairingError.NOT_PAIRING.value:
+                logger.error(f"********************************************************************")
+                logger.error(f"*                                                                  *")
+                logger.error(f"*                            UNPAIRED!                             *")
+                logger.error(f"*    Put Nuki in pairing mode by pressing the button 6 seconds     *")
+                logger.error(f"*                         Then try again                           *")
+                logger.error(f"*                                                                  *")
+                logger.error(f"********************************************************************")
+                exit(0)
+            else:
+                logger.error(f"Error {data}")
 
         if command == NukiCommand.KEYTURNER_STATES:
             update_config = not self.config or (self.last_state["current_update_count"] != data["current_update_count"])
@@ -436,8 +576,6 @@ class Nuki:
             if self._challenge_command == NukiCommand.KEYTURNER_STATES:
                 if update_config:
                     await self.get_config()
-                else:
-                    await self.disconnect()
             if self.config and self.last_state:
                 await self.manager.nuki_newstate(self)
             if self.device_type == DeviceType.OPENER and self.last_state["last_lock_action_completion_status"]:
@@ -446,7 +584,6 @@ class Nuki:
         elif command == NukiCommand.CONFIG:
             self.config = data
             logger.info(f"Config: {self.config}")
-            await self.disconnect()
             if self.config and self.last_state:
                 await self.manager.nuki_newstate(self)
 
@@ -468,13 +605,11 @@ class Nuki:
             await self._send_data(self._BLE_PAIRING_CHAR, cmd)
 
         elif command == NukiCommand.STATUS:
-            logger.error(f"Last action: {data}")
+            logger.info(f"Last action: {data}")
             if self._challenge_command == NukiCommand.AUTH_ID_CONFIRM:
                 if self._pairing_callback:
                     self._pairing_callback(self)
                     self._pairing_callback = None
-            if data["status"] == StatusCode.COMPLETED:
-                await self.disconnect()
 
         elif command == NukiCommand.CHALLENGE and self._challenge_command:
             logger.debug(f"Challenge for {self._challenge_command}")
@@ -510,22 +645,25 @@ class Nuki:
                 await self._send_data(self._BLE_PAIRING_CHAR, cmd)
 
     async def _send_data(self, characteristic, data):
-        # Sometimes the connection to the smartlock fails, retry 3 times
-        for _ in range(self.retry):
-            try:
-                if not self._client or not self._client.is_connected:
+        async def task():
+            # Sometimes the connection to the smartlock fails, retry 3 times
+            _characteristic = characteristic
+            for i in range(1, self.retry + 1):
+                logger.info(f'Trying to send data. Attempt {i}')
+                try:
                     await self.connect()
-                if characteristic is None:
-                    characteristic = self._BLE_CHAR
-                logger.debug(f"Sending data to {characteristic}: {data}")
-                await self._client.write_gatt_char(characteristic, data)
-            except Exception as exc:
-                logger.exception(f"Error: {type(exc)} {exc}")
-                await asyncio.sleep(1)
-            else:
-                break
-        else:
-            await self.disconnect()
+                    if _characteristic is None:
+                        _characteristic = self._BLE_CHAR
+                    logger.info(f'Sending data to {_characteristic}: {data}')
+                    await self._client.write_gatt_char(_characteristic, data)
+                except Exception as exc:
+                    logger.info(f'Error while sending data on attempt {i}')
+                    logger.exception(exc)
+                    await asyncio.sleep(0.2)
+                else:
+                    logger.info(f'Data sent on attempt {i}')
+                    break
+        await self.manager.taskQueue.add_task(task)
 
     async def _safe_start_notify(self, *args):
         try:
@@ -539,7 +677,9 @@ class Nuki:
     async def connect(self):
         if not self._client:
             self._client = self.manager.get_client(self.address, timeout=self.connection_timeout)
-        await self.manager.stop_scanning()
+        if self._client.is_connected:
+            logger.info("Connected")
+            return
         logger.info("Nuki connecting")
         await self._client.connect()
         logger.debug(f"Services {[str(s) for s in self._client.services]}")
@@ -553,23 +693,15 @@ class Nuki:
         await self._safe_start_notify(self._BLE_PAIRING_CHAR, self._notification_handler)
         await self._safe_start_notify(self._BLE_CHAR, self._notification_handler)
         logger.info("Connected")
-        self._command_timeout_task = asyncio.create_task(self._start_cmd_timeout())
-
-    async def _start_cmd_timeout(self):
-        await asyncio.sleep(self.command_timeout)
-        logger.info("Connection timeout")
-        await self.disconnect()
 
     async def disconnect(self):
-        logger.info("Nuki disconnecting")
-        await self._client.disconnect()
-        if self._command_timeout_task:
-            self._command_timeout_task.cancel()
-            self._command_timeout_task = None
-        await self.manager.start_scanning()
+        if self._client and self._client.is_connected:
+            logger.info(f"Nuki disconnecting...")
+            await self._client.disconnect()
+            logger.info("Nuki disconnected")
 
     async def update_state(self):
-        logger.info("Updating nuki state")
+        logger.info("Querying Nuki state")
         self._challenge_command = NukiCommand.KEYTURNER_STATES
         payload = NukiCommand.KEYTURNER_STATES.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
@@ -581,6 +713,7 @@ class Nuki:
         payload = NukiCommand.CHALLENGE.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
         await self._send_data(self._BLE_CHAR, cmd)
+        self.last_state['lock_state'] = LockState.LOCKING
 
     async def unlock(self):
         logger.info("Unlocking")
@@ -588,12 +721,14 @@ class Nuki:
         payload = NukiCommand.CHALLENGE.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
         await self._send_data(self._BLE_CHAR, cmd)
+        self.last_state['lock_state'] = LockState.UNLOCKING
 
     async def unlatch(self):
         self._challenge_command = NukiAction.UNLATCH
         payload = NukiCommand.CHALLENGE.value.to_bytes(2, "little")
         cmd = self._encrypt_command(NukiCommand.REQUEST_DATA.value, payload)
         await self._send_data(self._BLE_CHAR, cmd)
+        self.last_state['lock_state'] = LockState.UNLATCHING
 
     async def lock_action(self, action):
         logger.info(f"Lock action {action}")
@@ -614,5 +749,4 @@ class Nuki:
         self._challenge_command = NukiCommand.PUBLIC_KEY
         payload = NukiCommand.PUBLIC_KEY.value.to_bytes(2, "little")
         cmd = self._prepare_command(NukiCommand.REQUEST_DATA.value, payload)
-        await self.connect()
         await self._send_data(self._BLE_PAIRING_CHAR, cmd)
