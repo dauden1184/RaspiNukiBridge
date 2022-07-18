@@ -13,7 +13,6 @@ logging.getLogger("aiohttp").setLevel(logging.ERROR)
 logging.getLogger("bleak").addHandler(handler)
 logging.getLogger("bleak").setLevel(logging.ERROR)
 
-
 def _add_devices_to_manager(data, nuki_manager):
     for ls in data["smartlock"]:
         address = ls["address"]
