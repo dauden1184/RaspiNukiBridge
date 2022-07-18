@@ -9,7 +9,10 @@ https://developer.nuki.io/page/nuki-smart-lock-api-2/2/#heading--lock-action
 https://developer.nuki.io/page/nuki-bridge-http-api-1-13/4/#heading--lockstate  
   
 This is heavily inspired by the work of [Jandebeule](https://github.com/jandebeule/nukiPyBridge).
-  
+
+> Important - if you are experiencing delays using RPI, it is advised to use a bluetooth dongle instead of the builtin bluetooth hardware.
+> [TP-LINK UB400](https://www.tp-link.com/us/home-networking/usb-adapter/ub400/) is verified to be working.
+
 # Installation
 
 > ### Raspberry Pi 3B+ and 4 only
@@ -40,6 +43,7 @@ This will generate a nuki.yaml file similar to this:
 server:
   host: 0.0.0.0
   port: 8080
+  adapter: hci0
   name: RaspiNukiBridge
   app_id: xxxxxxxxx
   token: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -50,11 +54,10 @@ server:
   
 
 Pair the smartlock (this must be done only once).  
-You need to find the MAC address of your nuki smartlock, you can use a BLE scanner app.  
 Press for 6 seconds the button on the nuki to set it in pairing mode (the ring will turn on).  
 After that:
 ```
-python . --pair MAC_ADDRESS
+python . --pair
 ```
 
 Sometimes the bluetooth connection fails, try a few times if it happens.  
