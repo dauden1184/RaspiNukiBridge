@@ -13,6 +13,7 @@ def init_config(config_file):
     if os.path.isfile(config_file):
         with open(config_file) as f:
             data = yaml.load(f, Loader=yaml.FullLoader)
+            token = data["server"]["token"]
     else:
         app_id, token = _random_app_id_and_token()
         data = {
@@ -66,6 +67,8 @@ def init_config(config_file):
     nuki_manager.add_nuki(nuki)
 
     loop = asyncio.new_event_loop()
+
+    nuki_manager.start(loop)
 
     def pairing_completed(paired_nuki):
         nuki_public_key = paired_nuki.nuki_public_key.hex()

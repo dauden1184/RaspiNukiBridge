@@ -173,8 +173,8 @@ class NukiManager:
     def device_list(self):
         return list(self._devices.values())
 
-    def start(self):
-        self.taskQueue.start()
+    def start(self, loop=None):
+        self.taskQueue.start(loop)
 
     async def start_scanning(self):
         ATTEMPTS = 8
@@ -245,6 +245,7 @@ class TaskQueue:
         self._manager = manager
         self._queue = None
         self._scanning = False
+        self._loop = None
 
     async def _worker(self):
         initial_run = True
@@ -263,7 +264,7 @@ class TaskQueue:
                     if self._queue.empty():
                         logger.info(f'Waiting for more tasks with timeout')
                         try:
-                            task = await asyncio.wait_for(self._queue.get(), timeout=10)
+                            task = await asyncio.wait_for(self._queue.get(), timeout=10, loop=self._loop)
                         except (TimeoutError, CancelledError):
                             logger.info(f'No more tasks - cleaning up')
                             for device in self._manager.device_list:
@@ -297,15 +298,20 @@ class TaskQueue:
                 logger.exception(e)
                 continue
 
-    def start(self):
+    def start(self, loop=None):
         if self._queue:
             return
-        self._queue = asyncio.Queue()
-        loop = asyncio.get_event_loop()
-        loop.create_task(self._worker())
+        self._loop = loop
+        self._queue = asyncio.Queue(loop=self._loop)
+        if loop is None:
+            asyncio.get_event_loop().create_task(self._worker())
+        else:
+            loop.create_task(self._worker())
 
     async def add_task(self, task):
-        loop = asyncio.get_running_loop()
+        loop = self._loop
+        if loop is None:
+            loop = asyncio.get_running_loop()
         fut = loop.create_future()
 
         async def wrapper_task():
@@ -749,4 +755,5 @@ class Nuki:
         self._challenge_command = NukiCommand.PUBLIC_KEY
         payload = NukiCommand.PUBLIC_KEY.value.to_bytes(2, "little")
         cmd = self._prepare_command(NukiCommand.REQUEST_DATA.value, payload)
+        await self.connect()
         await self._send_data(self._BLE_PAIRING_CHAR, cmd)
