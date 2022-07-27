@@ -12,7 +12,7 @@ Use this instead of the [Nuki Bridge](https://nuki.io/en/bridge/) device.
 
 # Installation
 There are 2 methods:
-1. [As a Home Assistant Addon](#installation-as-home-assistant-os)
+1. [As a Home Assistant Addon](#installation-as-home-assistant-addon)
    1. Use this if your Home Assistant is nearby the Nuki Smart Lock
 2. [Outside of Home Assistant](#installation-outside-of-home-assistant-os)
    1. Use this if your Home Assistant too far from the Nuki Smart Lock
