@@ -30,7 +30,7 @@ There are 2 methods:
 1. Clone the repository.
 
    ```
-   git clone https://github.com/dauden1184/RaspiNukiBridge.git
+   git clone https://github.com/f1ren/RaspiNukiBridge.git
    ```
 
 2. Install the requirements.
