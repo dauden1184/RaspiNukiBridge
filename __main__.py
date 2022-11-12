@@ -68,7 +68,7 @@ if __name__ == "__main__":
         if args.pair:
             address = args.pair
         else:
-            address = find_ble_device('Nuki_.*', logger)
+            address = find_ble_device('Nuki_.*', data["server"].get("adapter", "hci0"), logger)
 
         bridge_public_key, bridge_private_key = _generate_bridge_keys()
         nuki = Nuki(address, None, None, bridge_public_key, bridge_private_key)
