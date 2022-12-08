@@ -9,7 +9,7 @@ import argparse
 import uuid
 import sys
 
-
+import nacl
 from nacl.public import PrivateKey
 from aiohttp import web, ClientSession
 
@@ -34,6 +34,9 @@ class WebServer:
         self._host = host
         self._port = port
         self._token = token
+        self._hashed_token = hashlib.sha256(str(self._token).encode('utf-8')).digest()
+        self._hashed_token_box = nacl.secret.SecretBox(self._hashed_token)
+        self._used_token = {}
         self.nuki_manager = nuki_manager
         self._start_datetime = None
         self._server_id = uuid.getnode() & 0xFFFFFFFF  # Truncate server_id to 32 bit, OpenHub doesn't like it too big
@@ -147,6 +150,12 @@ class WebServer:
                                  "paired": True} for nuki in self.nuki_manager if nuki.config]}
         return web.Response(text=json.dumps(resp))
 
+    def _clear_old_ctokens(self):
+        for ctk in list(self._used_token.keys()):
+            diff = (datetime.datetime.utcnow() - self._used_token[ctk]).total_seconds()
+            if diff > 60:
+                del self._used_token[ctk]
+
     def _check_token(self, request):
         if "hash" in request.query:
             rnr = request.query["rnr"]
@@ -155,6 +164,16 @@ class WebServer:
             return hash_256 == request.query["hash"]
         elif "token" in request.query:
             return self._token == request.query["token"]
+        elif "ctoken" in request.query:
+            nonce = bytes.fromhex(request.query["nonce"])
+            ctoken = bytes.fromhex(request.query["ctoken"])
+            self._clear_old_ctokens()
+            if ctoken not in self._used_token:
+                ts, rnr = self._hashed_token_box.decrypt(ctoken, nonce).decode().split(",")
+                ts = datetime.datetime.fromisoformat(ts[:-1])
+                diff = (datetime.datetime.utcnow() - ts).total_seconds()
+                self._used_token[ctoken] = ts
+                return diff <= 60
         return False
 
     async def nuki_lockaction(self, request):
