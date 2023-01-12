@@ -14,14 +14,14 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # Install requirements for add-on
 RUN \
     apk add --no-cache --virtual .build-dependencies \
-        libc-dev=0.7.2-r3 \
-        py3-pip=20.3.4-r1 \
-        python3-dev=3.9.7-r4 \
+        libc-dev \
+        py3-pip \
+        python3-dev \
     \
     && apk add --no-cache \
         build-base \
-        python3=3.9.7-r4 \
-        libffi-dev=3.4.2-r1 \
+        python3 \
+        libffi-dev \
         bluez \
     \
     && pip install --no-cache-dir -r /opt/requirements.txt
