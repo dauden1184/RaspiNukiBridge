@@ -7,7 +7,7 @@ START_GREEDY = range(1, 10)
 ONE_SHOT = [10, ]
 
 
-async def _device_mac_address(regex, logger, only_one):
+async def _device_mac_address(regex, adapter, logger, only_one):
     results = []
     if only_one:
         attempts = START_GREEDY
@@ -16,7 +16,7 @@ async def _device_mac_address(regex, logger, only_one):
 
     for i in attempts:
         logger.debug(f'Scanning for {regex}')
-        async with BleakScanner() as scanner:
+        async with BleakScanner(adapter=adapter) as scanner:
             await asyncio.sleep(1.2 ** i)
         for d in scanner.discovered_devices:
             if re.match(regex, d.name):
@@ -26,8 +26,8 @@ async def _device_mac_address(regex, logger, only_one):
             return results
 
 
-def find_ble_device(regex, logger, only_one=True):
+def find_ble_device(regex, adapter, logger, only_one=True):
     loop = asyncio.get_event_loop()
-    result = loop.run_until_complete(_device_mac_address(regex, logger, only_one))
+    result = loop.run_until_complete(_device_mac_address(regex, adapter, logger, only_one))
     loop.close()
     return result

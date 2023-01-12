@@ -18,22 +18,30 @@ def get_config_file():
 
 
 def init_config(config_file):
+    data = {
+        'server': {
+            'host': '0.0.0.0',
+            'port': '8080',
+            'name': 'RaspiNukiBridge',
+        }
+    }
+            
     if os.path.isfile(config_file):
         with open(config_file) as f:
-            data = yaml.load(f, Loader=yaml.FullLoader)
-    else:
+            data = data | yaml.load(f, Loader=yaml.FullLoader)
+            
+    app_id = data['server'].get('app_id')
+    token = data['server'].get('token')
+
+    if not token or not app_id:
         app_id, token = _random_app_id_and_token()
-        data = {
-            'server': {
-                'host': '0.0.0.0',
-                'port': '8080',
-                'name': 'RaspiNukiBridge',
-                'app_id': app_id,
-                'token': token
-            }
-        }
+        data['server']['app_id'] = app_id
+        data['server']['token'] = token
+    
     name = data["server"]["name"]
     app_id = data["server"]["app_id"]
+    token = data["server"]["token"]
+    
     bt_adapter = data["server"].get("adapter", "hci0")
     nuki_manager = NukiManager(name, app_id, bt_adapter)
 
@@ -57,7 +65,7 @@ def init_config(config_file):
     }
 
     # Device MAC Address
-    nuki_devices = find_ble_device('Nuki_.*', logger)
+    nuki_devices = find_ble_device('Nuki_.*', bt_adapter, logger)
     if len(nuki_devices) > 1:
         for device in nuki_devices:
             logger.info(device)
