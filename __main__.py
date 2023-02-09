@@ -85,7 +85,7 @@ class WebServer:
             async with ClientSession() as session:
                 for url in filter(None, self._http_callbacks):
                     try:
-                        data = {"nukiId": hex(nuki.config["id"])[2:],
+                        data = {"nukiId": nuki.config["id"],
                                 "deviceType": nuki.device_type.value}  # How to get this from bt api?
                         data.update(self._get_nuki_last_state(nuki))
                         async with session.post(url, data=json.dumps(data)) as resp:
@@ -126,7 +126,7 @@ class WebServer:
     async def nuki_list(self, request):
         if not self._check_token(request):
             raise web.HTTPForbidden()
-        resp = [{"nukiId": hex(nuki.config["id"])[2:],
+        resp = [{"nukiId": nuki.config["id"],
                  "deviceType": nuki.device_type.value,  # How to get this from bt api?
                  "name": nuki.config["name"],
                  "lastKnownState": self._get_nuki_last_state(nuki)} for nuki in self.nuki_manager if nuki.config]
@@ -136,14 +136,14 @@ class WebServer:
         if not self._check_token(request):
             raise web.HTTPForbidden()
         resp = {"bridgeType": BridgeType.SW.value,
-                # The hardwareId should not be sent if bridgeType is BRIDGE_SW, but the homeassistant
-                # integration expects it
+                # The hardwareId and firmwareVersion should not be sent if bridgeType is BRIDGE_SW,
+                # but the homeassistant integration expects it
                 "ids": {"hardwareId": self._server_id, "serverId": self._server_id},
-                "versions": {"appVersion": "0.1.0"},
+                "versions": {"appVersion": "0.1.0", "firmwareVersion": "0.1.0"},
                 "uptime": (datetime.datetime.now() - self._start_datetime).seconds,
                 "currentTime": datetime.datetime.now().isoformat()[:-7] + "Z",
                 "serverConnected": False,
-                "scanResults": [{"nukiId": hex(nuki.config["id"])[2:],
+                "scanResults": [{"nukiId": nuki.config["id"],
                                  "type": nuki.device_type.value,  # How to get this from bt api?
                                  "name": nuki.config["name"],
                                  "rssi": nuki.rssi,
