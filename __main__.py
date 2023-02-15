@@ -180,7 +180,7 @@ class WebServer:
         if not self._check_token(request):
             raise web.HTTPForbidden()
         action = int(request.query["action"])
-        n = self.nuki_manager.nuki_by_id(int(request.query["nukiId"], base=16))
+        n = self.nuki_manager.nuki_by_id(int(request.query["nukiId"]))
         await n.lock_action(action)
         res = json.dumps({"success": True, "batteryCritical": n.is_battery_critical})
         return web.Response(text=res)
@@ -188,13 +188,13 @@ class WebServer:
     async def nuki_state(self, request):
         if not self._check_token(request):
             raise web.HTTPForbidden()
-        n = self.nuki_manager.nuki_by_id(int(request.query["nukiId"], base=16))
+        n = self.nuki_manager.nuki_by_id(int(request.query["nukiId"]))
         return web.Response(text=json.dumps(self._get_nuki_last_state(n)))
 
     async def nuki_lock(self, request):
         if not self._check_token(request):
             raise web.HTTPForbidden()
-        n = self.nuki_manager.nuki_by_id(int(request.query["nukiId"], base=16))
+        n = self.nuki_manager.nuki_by_id(int(request.query["nukiId"]))
         await n.lock()
         res = json.dumps({"success": True, "batteryCritical": n.is_battery_critical})
         return web.Response(text=res)
@@ -202,7 +202,7 @@ class WebServer:
     async def nuki_unlock(self, request):
         if not self._check_token(request):
             raise web.HTTPForbidden()
-        n = self.nuki_manager.nuki_by_id(int(request.query["nukiId"], base=16))
+        n = self.nuki_manager.nuki_by_id(int(request.query["nukiId"]))
         await n.unlock()
         res = json.dumps({"success": True, "batteryCritical": n.is_battery_critical})
         return web.Response(text=res)
