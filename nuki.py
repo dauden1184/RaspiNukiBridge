@@ -332,6 +332,32 @@ class Nuki:
                              "nightmode_active": values[17],
                              # "accessory_battery_state": values[18],  # It doesn't exist?
                              }
+        elif self.device_type != DeviceType.OPENER and command == NukiCommand.CONFIG and len(data) == 72:
+            values = struct.unpack("<I32sffBBBBBHBBBBBhBBBBBBBBBBBBBB", data)
+            return command, {"id": values[0],
+                             "name": values[1].split(b"\x00")[0].decode(),
+                             "latitude": values[2],
+                             "longitude": values[3],
+                             "auto_unlatch": values[4],
+                             "pairing_enabled": values[5],
+                             "button_enabled": values[6],
+                             "led_enabled": values[7],
+                             "led_brightness": values[8],
+                             "current_time": datetime.datetime(values[9], values[10], values[11],
+                                                               values[12], values[13], values[14]),
+                             "timezone_offset": values[15],
+                             "dst_mode": values[16],
+                             "has_fob": values[17],
+                             "fob_action_1": values[18],
+                             "fob_action_2": values[19],
+                             "fob_action_3": values[20],
+                             "single_lock": values[21],
+                             "advertising_mode": values[22],
+                             "has_keypad": values[23],
+                             "firmware_version": f"{values[24]}.{values[25]}.{values[26]}",
+                             "hardware_revision": f"{values[27]}.{values[28]}",
+                             "homekit_status": values[29],
+                             }
         elif self.device_type != DeviceType.OPENER and command == NukiCommand.CONFIG:
             values = struct.unpack("<I32sffBBBBBHBBBBBhBBBBBBBBBBBBBBH", data[:74])
             return command, {"id": values[0],
