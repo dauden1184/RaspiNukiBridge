@@ -177,14 +177,15 @@ class NukiManager:
             pass
 
     async def _detected_ibeacon(self, device, advertisement_data):
-        if device.address in self._devices:
+        device_address = device.address.lower()
+        if device_address in self._devices:
             manufacturer_data = advertisement_data.manufacturer_data[76]
             if manufacturer_data[0] != 0x02:
                 # Ignore HomeKit advertisement
                 return
-            logger.info(f"Nuki: {device.address}, RSSI: {device.rssi} {advertisement_data}")
+            logger.info(f"Nuki: {device_address}, RSSI: {device.rssi} {advertisement_data}")
             tx_p = manufacturer_data[-1]
-            nuki = self._devices[device.address]
+            nuki = self._devices[device_address]
             nuki.set_ble_device(device)
             nuki.rssi = device.rssi
             if not nuki.device_type:

@@ -210,7 +210,7 @@ class WebServer:
 
 def _add_devices_to_manager(data, nuki_manager):
     for ls in data["smartlock"]:
-        address = ls["address"]
+        address = ls["address"].lower()
         auth_id = bytes.fromhex(ls["auth_id"])
         nuki_public_key = bytes.fromhex(ls["nuki_public_key"])
         bridge_public_key = bytes.fromhex(ls["bridge_public_key"])
