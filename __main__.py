@@ -30,7 +30,7 @@ logging.getLogger("bleak").setLevel(logging.ERROR)
 
 class WebServer:
 
-    def __init__(self, host, port, token, nuki_manager):
+    def __init__(self, host, port, token, server_id, nuki_manager):
         self._host = host
         self._port = port
         self._token = token
@@ -39,7 +39,7 @@ class WebServer:
         self._used_token = {}
         self.nuki_manager = nuki_manager
         self._start_datetime = None
-        self._server_id = uuid.getnode() & 0xFFFFFFFF  # Truncate server_id to 32 bit, OpenHub doesn't like it too big
+        self._server_id = server_id & 0xFFFFFFFF  # Truncate server_id to 32 bit, OpenHub doesn't like it too big
         self._http_callbacks = [None, None, None]  # Nuki Bridge support up to 3 callbacks
 
     def start(self):
@@ -248,17 +248,24 @@ if __name__ == "__main__":
     if args.generate_config:
         app_id = random.getrandbits(32)
         token = random.getrandbits(256).to_bytes(32, "little").hex()
+        server_id = uuid.getnode()
         print(f"server:\n"
               f"  host: 0.0.0.0\n"
               f"  port: 8080\n"
               f"  name: RaspiNukiBridge\n"
               f"  app_id: {app_id}\n"
-              f"  token: {token}\n")
+              f"  token: {token}\n"
+              f"  id: {server_id}\n")
         exit(0)
 
     config_file = args.config or "nuki.yaml"
     with open(config_file) as f:
         data = yaml.load(f, Loader=yaml.FullLoader)
+
+    if "id" not in data["server"]:
+        data["server"]["id"] = uuid.getnode()
+        with open(config_file, "w") as f:
+            yaml.dump(data, f)
 
     name = data["server"]["name"]
     app_id = data["server"]["app_id"]
@@ -298,5 +305,6 @@ if __name__ == "__main__":
             host = data["server"]["host"]
             port = data["server"]["port"]
             token = data["server"]["token"]
-            web_server = WebServer(host, port, token, nuki_manager)
+            server_id = data["server"]["id"]
+            web_server = WebServer(host, port, token, server_id, nuki_manager)
             web_server.start()
