@@ -15,7 +15,7 @@ This is heavily inspired by the work of [Jandebeule](https://github.com/jandebeu
 > ### Raspberry Pi 3B+ and 4 only
 > DOWNGRADE Bluez. [See comment](https://github.com/dauden1184/RaspiNukiBridge/issues/1#issuecomment-1103969957).
 > ```
-> wget http://ftp.hk.debian.org/debian/pool/main/b/bluez/bluez_5.50-1.2\~deb10u1_armhf.deb
+> wget http://ftp.hk.debian.org/debian/pool/main/b/bluez/bluez_5.50-1.2~deb10u2_armhf.deb
 > sudo apt install ./bluez_5.50-1.2~deb10u1_armhf.deb
 > ```
 > Reboot the Raspberry Pi
