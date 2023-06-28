@@ -1,6 +1,6 @@
 name: "Nuki Bridge"
 description: "Virtual Nuki Bridge to use instead of the physical device"
-version: "0.0.2"
+version: "0.0.3"
 slug: "nuki_bridge"
 url: "https://github.com/f1ren/RaspiNukiBridge"
 arch:
