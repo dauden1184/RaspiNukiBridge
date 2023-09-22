@@ -275,6 +275,12 @@ class Nuki:
         return seen_recently
 
     @property
+    def alive(self):
+        if self._last_ibeacon is None:
+           return False
+        return time.time() - self._last_ibeacon < 60 
+
+    @property
     def device_type(self):
         return self._device_type
     
