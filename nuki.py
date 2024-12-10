@@ -5,8 +5,8 @@ import logging
 import struct
 import hmac
 import enum
+import binascii
 
-import crc16
 import nacl.utils
 import nacl.secret
 from nacl.bindings.crypto_box import crypto_box_beforenm
@@ -266,13 +266,13 @@ class Nuki:
     @staticmethod
     def _prepare_command(cmd_code: int, payload=bytes()):
         message = cmd_code.to_bytes(2, "little") + payload
-        crc = crc16.crc16xmodem(message, 0xffff).to_bytes(2, "little")
+        crc = binascii.crc_hqx(message, 0xffff).to_bytes(2, "little")
         message += crc
         return message
 
     def _encrypt_command(self, cmd_code: int, payload=bytes()):
         unencrypted = self.auth_id + self._prepare_command(cmd_code, payload)[:-2]
-        crc = crc16.crc16xmodem(unencrypted, 0xffff).to_bytes(2, "little")
+        crc = binascii.crc_hqx(unencrypted, 0xffff).to_bytes(2, "little")
         unencrypted += crc
         nonce = nacl.utils.random(24)
         encrypted = self._box.encrypt(unencrypted, nonce)[24:]
