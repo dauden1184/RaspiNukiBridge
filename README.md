@@ -10,6 +10,14 @@ https://developer.nuki.io/page/nuki-bridge-http-api-1-13/4/#heading--lockstate
   
 This is heavily inspired by the work of [Jandebeule](https://github.com/jandebeule/nukiPyBridge).
   
+## Related projects
+
+- [Nuki Telegram Bot](https://github.com/lmerega/nuki_telegram_bot) – Self-hosted Telegram bot that controls a Nuki Smart Lock **exclusively via RaspiNukiBridge**.  
+  Supports per-user permissions, admin inline keyboards, secure unlatch confirmation, EN/IT localization and systemd-friendly deployment.
+
+- [Nuki Web Control](https://github.com/lmerega/nuki-web-control) – Small Flask web UI to control a Nuki Smart Lock via RaspiNukiBridge.  
+  Provides live lock status (lock state, door state, battery, timestamp) and actions (lock, unlock, unlatch, lock'n'go), with English/Italian UI.
+
 # Installation
 
 > ### Raspberry Pi 3B+ and 4 only
